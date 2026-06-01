@@ -7,3 +7,5 @@ prova_teste.tex
 *.aux
 *.log
 *.synctex.gz
+*.fls
+*.fdb_latexmk
