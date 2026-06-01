@@ -1,0 +1,9 @@
+.env/
+__pycache__/
+*.pdf
+*.png
+*.jpg
+prova_teste.tex
+*.aux
+*.log
+*.synctex.gz
