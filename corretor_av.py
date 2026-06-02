@@ -28,8 +28,7 @@ def testar_recorte_contexto(caminho_prova, caminho_simbolo):
 
     # Ordena os símbolos de cima para baixo na página
     pontos_unicos = sorted(pontos_unicos, key=lambda p: p[1])
-    print(f"Símbolos detectados com a nova limpeza: {len(pontos_unicos)}")
-
+    
     if len(pontos_unicos) >= 2:
         # O primeiro símbolo encontrado (Índice 0) é o de Abertura (topo do espaço)
         # O segundo símbolo encontrado (Índice 1) é o de Fechamento (fim do espaço)
@@ -44,13 +43,6 @@ def testar_recorte_contexto(caminho_prova, caminho_simbolo):
         recorte = imagem_colorida[y_inicio:y_fim, 0:largura_pagina]
         
         cv2.imwrite("resultado_recorte_calculo.jpg", recorte)
-        print("Sucesso absoluto! O bloco de cálculo foi isolado em 'resultado_recorte_calculo.jpg'")
-        
-        cv2.imshow("Espaço de Cálculo Isolado", recorte)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        return "resultado_recorte_calculo.jpg"
     else:
-        print("Erro: Não foi possível encontrar o par de abertura e fechamento.")
-
-if __name__ == "__main__":
-    testar_recorte_contexto("pagina_prova-1.png", "icone_equacao.jpg")
+        return None
