@@ -1,48 +1,46 @@
-# corretor.py
 import cv2
 import numpy as np
+import os
 
-def testar_recorte_contexto(caminho_prova, caminho_simbolo):
-    imagem_prova = cv2.imread(caminho_prova, cv2.IMREAD_GRAYSCALE)
-    imagem_colorida = cv2.imread(caminho_prova)
-    template = cv2.imread(caminho_simbolo, cv2.IMREAD_GRAYSCALE)
-    w, h = template.shape[::-1]
+def realizar_recorte_via_coordenadas_ia(caminho_prova, coordinates_normalized):
+    """
+    Utility para realizar o recorte matemático baseado nas coordenadas
+    fornecidas pela Inteligência Artificial.
+    Input coords: [ymin, xmin, ymax, xmax] na escala de 0 a 1000.
+    """
+    try:
+        if not os.path.exists(caminho_prova):
+            return None
 
-    resultado = cv2.matchTemplate(imagem_prova, template, cv2.TM_CCOEFF_NORMED)
-    
-    # Filtro de confiança seguro baseado no seu diagnóstico bem-sucedido
-    threshold = 0.9
-    loc = np.where(resultado >= threshold)
-    pontos_encontrados = list(zip(*loc[::-1]))
-    pontos_unicos = []
+        img = cv2.imread(caminho_prova)
+        height, width = img.shape[:2]
 
-    # NOVA FILTRAGEM 2D: Só descarta se o ponto sobrepuser o outro em X E Y ao mesmo tempo
-    for pt in pontos_encontrados:
-        duplicado = False
-        for p_salvo in pontos_unicos:
-            if abs(pt[0] - p_salvo[0]) < w and abs(pt[1] - p_salvo[1]) < h:
-                duplicado = True
-                break
-        if not duplicado:
-            pontos_unicos.append(pt)
+        # Extrai as coordenadas normalizadas
+        # COORDINATES=[ymin, xmin, ymax, xmax]
+        ymin_n, xmin_n, ymax_n, xmax_n = coordinates_normalized
 
-    # Ordena os símbolos de cima para baixo na página
-    pontos_unicos = sorted(pontos_unicos, key=lambda p: p[1])
-    
-    if len(pontos_unicos) >= 2:
-        # O primeiro símbolo encontrado (Índice 0) é o de Abertura (topo do espaço)
-        # O segundo símbolo encontrado (Índice 1) é o de Fechamento (fim do espaço)
-        simbolo_inicio = pontos_unicos[0]
-        simbolo_fim = pontos_unicos[1]
+        # Converte de escala normalizada (0-1000) para pixels reais
+        y_start = int((ymin_n / 1000) * height)
+        x_start = int((xmin_n / 1000) * width)
+        y_end = int((ymax_n / 1000) * height)
+        x_end = int((xmax_n / 1000) * width)
 
-        y_inicio = simbolo_inicio[1] + h
-        y_fim = simbolo_fim[1]
-        largura_pagina = imagem_prova.shape[1]
-        
-        # Realiza o recorte exato do espaço em branco
-        recorte = imagem_colorida[y_inicio:y_fim, 0:largura_pagina]
-        
-        cv2.imwrite("resultado_recorte_calculo.jpg", recorte)
-        return "resultado_recorte_calculo.jpg"
-    else:
+        # Garante integridade matemática (evita recortes invertidos ou fora da imagem)
+        y_start = max(0, y_start)
+        x_start = max(0, x_start)
+        y_end = min(height, y_end)
+        x_end = min(width, x_end)
+
+        if y_end > y_start and x_end > x_start:
+            # Realiza o recorte matricial
+            recorte = img[y_start:y_end, x_start:x_end]
+            caminho_saida = "resultado_recorte_ia.jpg"
+            cv2.imwrite(caminho_saida, recorte)
+            return caminho_saida
+        else:
+            print("Erro: Coordenadas de recorte inválidas geradas pela IA.")
+            return None
+
+    except Exception as e:
+        print(f"Erro no processamento do recorte matemático: {e}")
         return None
