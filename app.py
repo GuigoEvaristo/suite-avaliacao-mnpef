@@ -6,10 +6,35 @@ from corretor_av import realizar_recorte_via_coordenadas_ia
 from services.ia_service import analisar_prova_com_ia
 from database.db_manager import iniciar_banco, salvar_correcao, buscar_historico
 
-# Inicializa o banco de dados logo que a aplicação arranca
-iniciar_banco()
-
 st.set_page_config(page_title="Corretor Inteligente - MNPEF", layout="centered")
+
+# =========================================================
+# SISTEMA DE AUTENTICAÇÃO (TELA DE SENHA)
+# =========================================================
+if "autenticado" not in st.session_state:
+    st.session_state["autenticado"] = False
+
+if not st.session_state["autenticado"]:
+    st.title("🔒 Acesso Restrito")
+    st.write("Por favor, insira a senha de acesso para utilizar o sistema de correção.")
+    
+    senha_digitada = st.text_input("Senha:", type="password")
+    
+    if st.button("Entrar"):
+        if senha_digitada == st.secrets["SENHA_ACESSO"]:
+            st.session_state["autenticado"] = True
+            st.rerun() # Recarrega a página agora com acesso liberado
+        else:
+            st.error("Senha incorreta. Tente novamente.")
+            
+    st.stop() # Esta linha é crucial: impede que o resto do código rode se não houver senha
+
+# =========================================================
+# O CÓDIGO ABAIXO SÓ RODA SE A SENHA FOR CORRETA
+# =========================================================
+
+# Inicializa o banco de dados
+iniciar_banco()
 
 st.title("🤖 Ambiente de Gestão de Avaliações")
 st.write("Bem-vindo! Escolha uma das opções abaixo para gerenciar as suas avaliações de Física.")
@@ -21,7 +46,7 @@ aba_fabricar, aba_corrigir, aba_historico = st.tabs([
 ])
 
 # ---------------------------------------------------------
-# CONTEÚDO DA ABA 1: FABRICAR PROVA (Com QA completo)
+# CONTEÚDO DA ABA 1: FABRICAR PROVA
 # ---------------------------------------------------------
 with aba_fabricar:
     st.header("Formulário de Elaboração de Prova")
@@ -50,7 +75,6 @@ with aba_fabricar:
         questoes_configuradas.append({"texto": texto_q, "tipo": tipo_q})
 
     if st.button("Salvar e Gerar PDF para Impressão"):
-        # Defesas do QA
         if colegio == "Selecione o colégio...":
             st.warning("⚠️ Atenção: Por favor, selecione um colégio válido na lista.")
         elif not turma:
@@ -72,7 +96,7 @@ with aba_fabricar:
                     st.error(f"❌ Falha crítica na geração do PDF: {latex_err}")
 
 # ---------------------------------------------------------
-# CONTEÚDO DA ABA 2: CORRIGIR AVALIAÇÃO (Com QA + Banco de Dados)
+# CONTEÚDO DA ABA 2: CORRIGIR AVALIAÇÃO
 # ---------------------------------------------------------
 with aba_corrigir:
     st.header("Captura e Correção de Respostas")
@@ -94,7 +118,6 @@ with aba_corrigir:
                 try:
                     resultado_ia = analisar_prova_com_ia(caminho_temp)
                     
-                    # Salva no banco de dados (Acesso à Etapa 3)
                     salvar_correcao(resultado_ia["parecer"], resultado_ia["coordenadas"])
                     
                     st.success("✅ Análise concluída e guardada no Histórico!")
@@ -112,7 +135,6 @@ with aba_corrigir:
                     else:
                          st.warning("⚠️ A IA forneceu o parecer, mas não conseguiu delimitar visualmente a caligrafia com precisão.")
                 
-                # Tratamento granular restaurado (Rigidez da Etapa 2)
                 except ValueError as ve:
                     st.error(f"❌ Erro de ficheiro: {ve}")
                 except ConnectionError as ce:
