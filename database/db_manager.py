@@ -1,55 +1,126 @@
 # database/db_manager.py
 import sqlite3
 import datetime
+import hashlib
 import os
 
 DB_PATH = 'avaliacoes_mnpef.db'
 
+def hash_senha(senha):
+    return hashlib.sha256(senha.encode()).hexdigest()
+
 def iniciar_banco():
-    """
-    Cria o ficheiro do banco de dados e a tabela de histórico, caso não existam.
-    """
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
+    
+    # 1. Utilizadores (Sem a escola fixa)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS usuarios (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome TEXT NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            telefone TEXT,
+            senha_hash TEXT NOT NULL,
+            data_cadastro TEXT
+        )
+    ''')
+    
+    # 2. NOVA: Tabela de Escolas (1 Professor pode ter N Escolas)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS escolas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            usuario_id INTEGER,
+            nome TEXT NOT NULL,
+            FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
+        )
+    ''')
+    
+    # 3. Histórico (Agora com o registo da escola onde a prova foi aplicada)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS historico_correcoes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            usuario_id INTEGER,
+            escola_nome TEXT,
             data_hora TEXT,
             parecer_ia TEXT,
-            coordenadas TEXT
+            coordenadas TEXT,
+            FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
         )
     ''')
+    
     conn.commit()
     conn.close()
 
-def salvar_correcao(parecer, coordenadas):
-    """
-    Regista uma nova correção na base de dados.
-    """
+# --- GESTÃO DE UTILIZADORES E ESCOLAS ---
+
+def registar_usuario(nome, email, telefone, senha):
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        data_cadastro = datetime.datetime.now().strftime("%d/%m/%Y")
+        senha_criptografada = hash_senha(senha)
+        
+        cursor.execute('''
+            INSERT INTO usuarios (nome, email, telefone, senha_hash, data_cadastro)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (nome, email, telefone, senha_criptografada, data_cadastro))
+        
+        conn.commit()
+        conn.close()
+        return True, "Utilizador registado com sucesso!"
+    except sqlite3.IntegrityError:
+        return False, "Este e-mail já está registado no sistema."
+    except Exception as e:
+        return False, f"Erro ao registar: {e}"
+
+def validar_login(email, senha):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    
-    # Captura o momento exato da correção
+    senha_criptografada = hash_senha(senha)
+    cursor.execute('SELECT id, nome FROM usuarios WHERE email = ? AND senha_hash = ?', (email, senha_criptografada))
+    usuario = cursor.fetchone()
+    conn.close()
+    if usuario:
+        return {"id": usuario[0], "nome": usuario[1]}
+    return None
+
+def adicionar_escola(usuario_id, nome_escola):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute('INSERT INTO escolas (usuario_id, nome) VALUES (?, ?)', (usuario_id, nome_escola))
+    conn.commit()
+    conn.close()
+
+def buscar_escolas_por_usuario(usuario_id):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute('SELECT nome FROM escolas WHERE usuario_id = ? ORDER BY nome', (usuario_id,))
+    escolas = [row[0] for row in cursor.fetchall()]
+    conn.close()
+    return escolas
+
+# --- GESTÃO DE HISTÓRICO ---
+
+def salvar_correcao(usuario_id, escola_nome, parecer, coordenadas):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
     data_hora = datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-    
-    # Converte a lista de coordenadas para string para ser guardada no SQLite
     coords_str = str(coordenadas) if coordenadas else "Não delimitado"
-    
     cursor.execute('''
-        INSERT INTO historico_correcoes (data_hora, parecer_ia, coordenadas)
-        VALUES (?, ?, ?)
-    ''', (data_hora, parecer, coords_str))
-    
+        INSERT INTO historico_correcoes (usuario_id, escola_nome, data_hora, parecer_ia, coordenadas)
+        VALUES (?, ?, ?, ?, ?)
+    ''', (usuario_id, escola_nome, data_hora, parecer, coords_str))
     conn.commit()
     conn.close()
 
-def buscar_historico():
-    """
-    Recupera todas as correções guardadas, da mais recente para a mais antiga.
-    """
+def buscar_historico_por_usuario_e_escola(usuario_id, escola_nome):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute('SELECT data_hora, parecer_ia FROM historico_correcoes ORDER BY id DESC')
+    cursor.execute('''
+        SELECT data_hora, parecer_ia FROM historico_correcoes 
+        WHERE usuario_id = ? AND escola_nome = ?
+        ORDER BY id DESC
+    ''', (usuario_id, escola_nome))
     registos = cursor.fetchall()
     conn.close()
     return registos

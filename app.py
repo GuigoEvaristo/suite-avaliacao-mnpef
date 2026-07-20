@@ -4,162 +4,200 @@ import os
 from fabri_ava import fabricar_prova
 from corretor_av import realizar_recorte_via_coordenadas_ia
 from services.ia_service import analisar_prova_com_ia
-from database.db_manager import iniciar_banco, salvar_correcao, buscar_historico
+from database.db_manager import (
+    iniciar_banco, registar_usuario, validar_login, 
+    adicionar_escola, buscar_escolas_por_usuario,
+    salvar_correcao, buscar_historico_por_usuario_e_escola
+)
 
 st.set_page_config(page_title="Corretor Inteligente - MNPEF", layout="centered")
-
-# =========================================================
-# SISTEMA DE AUTENTICAÇÃO (TELA DE SENHA)
-# =========================================================
-if "autenticado" not in st.session_state:
-    st.session_state["autenticado"] = False
-
-if not st.session_state["autenticado"]:
-    st.title("🔒 Acesso Restrito")
-    st.write("Por favor, insira a senha de acesso para utilizar o sistema de correção.")
-    
-    senha_digitada = st.text_input("Senha:", type="password")
-    
-    if st.button("Entrar"):
-        if senha_digitada == st.secrets["SENHA_ACESSO"]:
-            st.session_state["autenticado"] = True
-            st.rerun() # Recarrega a página agora com acesso liberado
-        else:
-            st.error("Senha incorreta. Tente novamente.")
-            
-    st.stop() # Esta linha é crucial: impede que o resto do código rode se não houver senha
-
-# =========================================================
-# O CÓDIGO ABAIXO SÓ RODA SE A SENHA FOR CORRETA
-# =========================================================
-
-# Inicializa o banco de dados
 iniciar_banco()
 
-st.title("🤖 Ambiente de Gestão de Avaliações")
-st.write("Bem-vindo! Escolha uma das opções abaixo para gerenciar as suas avaliações de Física.")
+# =========================================================
+# ESTADO DA SESSÃO
+# =========================================================
+if "autenticado" not in st.session_state: st.session_state["autenticado"] = False
+if "usuario_logado" not in st.session_state: st.session_state["usuario_logado"] = None
+if "escola_ativa" not in st.session_state: st.session_state["escola_ativa"] = None
 
+# =========================================================
+# PORTA 1: SENHA GLOBAL
+# =========================================================
+if not st.session_state["autenticado"]:
+    st.title("🔒 Acesso Restrito ao Projeto")
+    st.write("Insira a senha global do MNPEF para acessar o ambiente.")
+    senha_digitada = st.text_input("Senha Global:", type="password")
+    if st.button("Entrar no Sistema"):
+        if senha_digitada == st.secrets["SENHA_ACESSO"]:
+            st.session_state["autenticado"] = True
+            st.rerun()
+        else: st.error("Senha global incorreta.")
+    st.stop()
+
+# =========================================================
+# PORTA 2: LOGIN / REGISTO DO PROFESSOR (Sem escola fixa)
+# =========================================================
+if st.session_state["autenticado"] and st.session_state["usuario_logado"] is None:
+    st.title("Bem-vindo ao Corretor Inteligente")
+    aba_login, aba_registo = st.tabs(["🔑 Fazer Login", "📝 Criar Nova Conta"])
+    
+    with aba_login:
+        email_login = st.text_input("E-mail:")
+        senha_login = st.text_input("Senha Pessoal:", type="password")
+        if st.button("Entrar"):
+            usuario = validar_login(email_login, senha_login)
+            if usuario:
+                st.session_state["usuario_logado"] = usuario
+                st.rerun()
+            else: st.error("E-mail ou senha incorretos.")
+                
+    with aba_registo:
+        nome_reg = st.text_input("Nome Completo:")
+        email_reg = st.text_input("E-mail Profissional:")
+        tel_reg = st.text_input("Telefone (Opcional):")
+        senha_reg = st.text_input("Crie uma Senha Pessoal:", type="password")
+        senha_conf = st.text_input("Confirme a Senha:", type="password")
+        
+        if st.button("Registar Conta"):
+            if not (nome_reg and email_reg and senha_reg):
+                st.warning("Preencha nome, e-mail e senha.")
+            elif senha_reg != senha_conf:
+                st.error("As senhas não coincidem.")
+            else:
+                sucesso, msg = registar_usuario(nome_reg, email_reg, tel_reg, senha_reg)
+                if sucesso: st.success(f"{msg} Vá para a aba 'Fazer Login'.")
+                else: st.error(msg)
+    st.stop()
+
+# =========================================================
+# O APLICATIVO PRINCIPAL (Com Contexto de Escola)
+# =========================================================
+nome_prof = st.session_state["usuario_logado"]["nome"]
+usuario_id = st.session_state["usuario_logado"]["id"]
+
+col1, col2 = st.columns([0.8, 0.2])
+with col1: st.title(f"Olá, Prof. {nome_prof} 👋")
+with col2: 
+    st.write("")
+    if st.button("🚪 Sair"):
+        st.session_state["usuario_logado"] = None
+        st.session_state["escola_ativa"] = None
+        st.rerun()
+
+st.markdown("---")
+
+# --- SELETOR DE CONTEXTO (AS ESCOLAS DO PROFESSOR) ---
+st.subheader("🏫 Ambiente de Trabalho")
+escolas_do_prof = buscar_escolas_por_usuario(usuario_id)
+
+if not escolas_do_prof:
+    st.warning("Você ainda não possui escolas cadastradas.")
+    nova_escola = st.text_input("Nome da Escola/Colégio:")
+    if st.button("Cadastrar Primeira Escola"):
+        if nova_escola:
+            adicionar_escola(usuario_id, nova_escola.strip())
+            st.rerun()
+    st.stop() # Bloqueia o sistema até ter pelo menos uma escola
+
+else:
+    col_escola, col_nova = st.columns([0.7, 0.3])
+    with col_escola:
+        escola_selecionada = st.selectbox("Atuando agora em:", escolas_do_prof)
+        st.session_state["escola_ativa"] = escola_selecionada
+    with col_nova:
+        with st.expander("+ Nova Escola"):
+            extra_escola = st.text_input("Nome:")
+            if st.button("Adicionar"):
+                if extra_escola:
+                    adicionar_escola(usuario_id, extra_escola.strip())
+                    st.rerun()
+
+st.markdown("---")
+
+# =========================================================
+# ABAS DO SISTEMA (Filtradas pela escola_ativa)
+# =========================================================
 aba_fabricar, aba_corrigir, aba_historico = st.tabs([
-    "📝 Fabricar Prova", 
-    "📸 Corrigir Avaliação", 
-    "📊 Histórico de Correções"
+    "📝 Fabricar Prova", "📸 Corrigir Avaliação", "📊 Histórico"
 ])
 
-# ---------------------------------------------------------
-# CONTEÚDO DA ABA 1: FABRICAR PROVA
-# ---------------------------------------------------------
+# ABA 1: FABRICAR PROVA (Usa a escola automaticamente)
 with aba_fabricar:
-    st.header("Formulário de Elaboração de Prova")
-    colegio = st.selectbox(
-        "Para qual colégio será realizada a prova?",
-        ["Selecione o colégio...", "Instituto de Educação de Dourados", "Colégio Estadual X", "Escola Particular Y"]
-    )
+    st.header(f"Elaboração de Prova - {st.session_state['escola_ativa']}")
     turma = st.text_input("Qual é a turma?", placeholder="Ex: 3º Ano A").strip()
-    num_questoes = st.number_input("Número de questões:", min_value=1, max_value=10, value=1, step=1)
-
-    st.markdown("---")
+    num_questoes = st.number_input("Número de questões:", min_value=1, max_value=10, value=1)
+    
     questoes_configuradas = []
     todos_enunciados_preenchidos = True
-    
     for i in range(int(num_questoes)):
-        st.markdown(f"##### **Questão {i+1}**")
         texto_q = st.text_area(f"Enunciado da Questão {i+1}:", key=f"texto_{i}").strip()
         if not texto_q: todos_enunciados_preenchidos = False
-             
-        tipo_q = st.radio(
-            f"Formato da resposta da Questão {i+1}:",
-            options=["calculo", "texto"],
-            format_func=lambda x: "Resolução Matemática (Cálculo)" if x == "calculo" else "Justificativa Conceitual (Texto)",
-            key=f"tipo_{i}"
-        )
+        tipo_q = st.radio(f"Formato da Questão {i+1}:", ["calculo", "texto"], key=f"tipo_{i}")
         questoes_configuradas.append({"texto": texto_q, "tipo": tipo_q})
 
-    if st.button("Salvar e Gerar PDF para Impressão"):
-        if colegio == "Selecione o colégio...":
-            st.warning("⚠️ Atenção: Por favor, selecione um colégio válido na lista.")
-        elif not turma:
-            st.warning("⚠️ Atenção: O campo 'Turma' não pode estar vazio.")
-        elif not todos_enunciados_preenchidos:
-            st.warning("⚠️ Atenção: Por favor, preencha o enunciado de todas as questões.")
+    if st.button("Gerar PDF"):
+        if not turma: st.warning("O campo 'Turma' não pode estar vazio.")
+        elif not todos_enunciados_preenchidos: st.warning("Preencha todos os enunciados.")
         else:
-            with st.spinner("A compilar código LaTeX..."):
+            with st.spinner("Compilando..."):
                 try:
-                    dados_prova = {"escola": colegio, "turma": turma, "questoes": questoes_configuradas}
+                    # Injeta a escola ativa automaticamente
+                    dados_prova = {"escola": st.session_state["escola_ativa"], "turma": turma, "questoes": questoes_configuradas}
                     fabricar_prova(dados_prova, "modelo.tex", "prova_gerada_app")
                     if os.path.exists("prova_gerada_app.pdf"):
-                        st.success("✅ Avaliação estruturada com sucesso!")
+                        st.success("✅ Avaliação estruturada!")
                         with open("prova_gerada_app.pdf", "rb") as pdf_file:
-                            st.download_button("📥 Baixar PDF da Prova Pronta", data=pdf_file, file_name=f"Avaliacao_Fisica_{turma.replace(' ', '_')}.pdf", mime="application/pdf")
-                    else:
-                        st.error("❌ Ocorreu um erro na compilação do ficheiro LaTeX. Verifique a instalação do compilador.")
-                except Exception as latex_err:
-                    st.error(f"❌ Falha crítica na geração do PDF: {latex_err}")
+                            st.download_button("📥 Baixar PDF", data=pdf_file, file_name=f"Prova_{turma.replace(' ', '_')}.pdf", mime="application/pdf")
+                    else: st.error("❌ Erro na compilação do LaTeX.")
+                except Exception as e: st.error(f"❌ Falha crítica: {e}")
 
-# ---------------------------------------------------------
-# CONTEÚDO DA ABA 2: CORRIGIR AVALIAÇÃO
-# ---------------------------------------------------------
+# ABA 2: CORRIGIR (Tratamento de Exceções Totalmente Restaurado)
 with aba_corrigir:
-    st.header("Captura e Correção de Respostas")
-    foto_prova = st.file_uploader("Selecione ou tire a foto da prova:", type=["png", "jpg", "jpeg"])
+    st.header("Captura e Correção")
+    foto_prova = st.file_uploader("Envie a foto da prova:", type=["png", "jpg", "jpeg"])
 
-    if foto_prova is not None:
+    if foto_prova:
         caminho_temp = "upload_temp.jpg"
         try:
-             with open(caminho_temp, "wb") as f:
-                 f.write(foto_prova.getbuffer())
+             with open(caminho_temp, "wb") as f: f.write(foto_prova.getbuffer())
         except Exception as fs_err:
-             st.error(f"❌ Erro ao guardar o ficheiro temporário: {fs_err}")
-             st.stop()
+             st.error(f"❌ Erro ao guardar ficheiro temporário: {fs_err}"); st.stop()
             
-        st.image(caminho_temp, caption="Captura recebida (Visão Inteira)", use_container_width=True)
+        st.image(caminho_temp, caption="Visão Inteira", use_container_width=True)
         
-        if st.button("Executar Análise Multimodal (Segmentação Semântica + IA)"):
-            with st.spinner("A processar e a guardar os resultados na base de dados..."):
+        if st.button("Executar Análise Multimodal"):
+            with st.spinner("Processando e guardando no arquivo da escola..."):
                 try:
                     resultado_ia = analisar_prova_com_ia(caminho_temp)
                     
-                    salvar_correcao(resultado_ia["parecer"], resultado_ia["coordenadas"])
+                    # Salva usando o ID do professor E a Escola Ativa
+                    salvar_correcao(usuario_id, st.session_state["escola_ativa"], resultado_ia["parecer"], resultado_ia["coordenadas"])
                     
-                    st.success("✅ Análise concluída e guardada no Histórico!")
-                    st.markdown("### 📝 Parecer Pedagógico da IA")
+                    st.success("✅ Análise guardada no Histórico!")
                     st.info(resultado_ia["parecer"])
 
                     if resultado_ia["coordenadas"]:
-                        st.write("---")
                         try:
                              caminho_recorte = realizar_recorte_via_coordenadas_ia(caminho_temp, resultado_ia["coordenadas"])
-                             if caminho_recorte: st.image(caminho_recorte, caption="Bloco extraído semanticamente pelo Gemini")
-                             else: st.warning("⚠️ Não foi possível gerar a visualização do recorte matemático, mas a análise pedagógica acima continua válida.")
-                        except Exception as crop_err:
-                             st.error(f"❌ Erro ao cortar a imagem: {crop_err}")
-                    else:
-                         st.warning("⚠️ A IA forneceu o parecer, mas não conseguiu delimitar visualmente a caligrafia com precisão.")
+                             if caminho_recorte: st.image(caminho_recorte, caption="Bloco extraído")
+                        except Exception as crop_err: st.error(f"❌ Erro ao cortar imagem: {crop_err}")
                 
-                except ValueError as ve:
-                    st.error(f"❌ Erro de ficheiro: {ve}")
-                except ConnectionError as ce:
-                     st.error(f"❌ Erro de Ligação: {ce}")
-                except Exception as e:
-                    st.error(f"❌ Ocorreu um erro interno na aplicação: {e}")
+                # QA RIGOROSO RESTAURADO
+                except ValueError as ve: st.error(f"❌ Erro de ficheiro: {ve}")
+                except ConnectionError as ce: st.error(f"❌ Erro de Ligação/Google: {ce}")
+                except Exception as e: st.error(f"❌ Erro interno: {e}")
 
-# ---------------------------------------------------------
-# CONTEÚDO DA ABA 3: HISTÓRICO DE AVALIAÇÕES
-# ---------------------------------------------------------
+# ABA 3: HISTÓRICO (Filtrado por Prof + Escola)
 with aba_historico:
-    st.header("Auditoria e Rastreabilidade")
-    st.write("Consulte aqui todos os pareceres pedagógicos emitidos anteriormente pelo sistema.")
+    st.header(f"Arquivo Pedagógico: {st.session_state['escola_ativa']}")
     
-    if st.button("🔄 Atualizar Histórico"):
-        st.rerun()
+    if st.button("🔄 Atualizar"): st.rerun()
         
-    registos = buscar_historico()
+    registos = buscar_historico_por_usuario_e_escola(usuario_id, st.session_state["escola_ativa"])
     
-    if len(registos) == 0:
-        st.info("A base de dados está vazia. Realize a correção de uma prova para preencher o histórico.")
+    if not registos:
+        st.info("Nenhuma correção encontrada para esta escola.")
     else:
-        for registo in registos:
-            data_hora = registo[0]
-            parecer_salvo = registo[1]
-            
-            with st.expander(f"Correção realizada em: {data_hora}"):
-                st.markdown(parecer_salvo)
+        for reg in registos:
+            with st.expander(f"Data: {reg[0]}"):
+                st.markdown(reg[1])
