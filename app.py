@@ -12,7 +12,7 @@ from database.db_manager import (
     salvar_prova_fabricada, buscar_provas_por_usuario_e_escola, buscar_pdf_prova
 )
 
-st.set_page_config(page_title="Corretor Inteligente - MNPEF", layout="centered", page_icon="📝")
+st.set_page_config(page_title="Suíte de Avaliação para Professores - MNPEF", layout="centered", page_icon="📝")
 iniciar_banco()
 
 # =========================================================
@@ -48,7 +48,8 @@ def remover_questao(index):
 # PORTAS DE ACESSO (MANTIDAS)
 # =========================================================
 if not st.session_state["autenticado"]:
-    st.title("🔒 Acesso Restrito ao Projeto")
+    st.title("Bem-vindo à Suíte de Avaliação para Professores")
+    st.subheader("🔒 Acesso Restrito ao Projeto")
     senha_digitada = st.text_input("Senha Global:", type="password")
     if st.button("Entrar no Sistema"):
         if senha_digitada == st.secrets["SENHA_ACESSO"]:
@@ -145,6 +146,29 @@ with aba_fabricar:
 
     st.markdown("---")
     st.header("2. Construção das Questões")
+
+    # --- GUIA RÁPIDO DE FORMATAÇÃO E FÓRMULAS ---
+    with st.expander("💡 Guia Rápido de Formatação e Fórmulas Matemáticas"):
+        st.markdown("""
+        O sistema reconhece comandos nativos de formatação científica. Para ativar a matemática, envolva a equação com **$** (cifrões).
+
+        **Formatação de Texto**
+        * **Negrito:** Digite `\textbf{seu texto}` 
+        * **Itálico:** Digite `\textit{seu texto}` 
+        * **Sublinhado:** Digite `\underline{seu texto}`
+
+        **Símbolos e Equações (Física e Matemática)**
+        * **Índices (Subscrito):** Use `_` ➔ `v_0` resulta em $v_0$
+        * **Potências (Sobrescrito):** Use `^` ➔ `m^2` resulta em $m^2$
+        * **Frações:** Use `\frac{cima}{baixo}` ➔ `\frac{\Delta s}{\Delta t}` resulta em $\frac{\Delta s}{\Delta t}$
+        * **Raiz Quadrada:** Use `\sqrt{número}` ➔ `\sqrt{129}` resulta em $\sqrt{129}$
+        * **Letras Gregas:** Use a barra invertida ➔ `\alpha, \beta, \Delta, \Omega, \mu` resulta em $\alpha, \beta, \Delta, \Omega, \mu$
+        * **Multiplicação (Ponto):** Use `\cdot` ➔ `F = m \cdot a` resulta em $F = m \cdot a$
+
+        **Exemplo prático no enunciado:**
+        > "A equação da velocidade é dada por $v = v_0 + a \cdot t$. Calcule..."
+        """)
+    # --------------------------------------------
 
     # Renderiza o Vetor de Questões
     for i, q in enumerate(st.session_state["lista_questoes"]):
