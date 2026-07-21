@@ -149,7 +149,7 @@ with aba_fabricar:
 
     # --- GUIA RÁPIDO DE FORMATAÇÃO E FÓRMULAS ---
     with st.expander("💡 Guia Rápido de Formatação e Fórmulas Matemáticas"):
-        st.markdown("""
+        st.markdown(r"""
         O sistema reconhece comandos nativos de formatação científica. Para ativar a matemática, envolva a equação com **$** (cifrões).
 
         **Formatação de Texto**
