@@ -1,5 +1,6 @@
 # app.py
 import streamlit as st
+import pandas as pd
 import os
 import datetime
 from fabri_ava import fabricar_prova
@@ -388,9 +389,55 @@ with aba_corrigir:
     )
     
     if fotos_provas:
-        st.success(f"📸 {len(fotos_provas)} imagens carregadas com sucesso na memória.")
+        st.success(f"📸 {len(fotos_provas)} imagens carregadas na memória.")
+        
         if homologado:
-            st.warning("🚧 A Tabela de Triagem Inteligente (com inserção de e-mails para feedback) e o motor de Correção em Massa serão injetados na próxima atualização.")
+            st.markdown("### 📋 Tabela de Triagem (Protótipo Visual)")
+            st.info("👉 **Teste a usabilidade:** Dê um duplo clique nas células para editar Nomes, inserir E-mails ou alterar a Situação. Marque a caixa de Verificado para liberar a prova para correção.")
+            
+            # 1. Criação dos dados fictícios (Mock)
+            if "df_triagem" not in st.session_state:
+                st.session_state["df_triagem"] = pd.DataFrame({
+                    "Nº": [1, 2, 3],
+                    "Nome Lido (OCR)": ["Ana Clara", "Gabriel Souza", "João Pedro"],
+                    "E-mail (Feedback)": ["", "", ""],
+                    "Situação": ["Presente", "Transferido", "Presente"],
+                    "Verificado ✅": [False, False, False]
+                })
+
+            # 2. Renderização da Planilha Interativa
+            df_editado = st.data_editor(
+                st.session_state["df_triagem"],
+                column_config={
+                    "Nº": st.column_config.NumberColumn("Nº", min_value=1, step=1, width="small"),
+                    "Nome Lido (OCR)": st.column_config.TextColumn("Nome do Aluno", width="medium"),
+                    "E-mail (Feedback)": st.column_config.TextColumn("E-mail", width="medium"),
+                    "Situação": st.column_config.SelectboxColumn(
+                        "Situação",
+                        options=["Presente", "Transferido", "Faltou"],
+                        required=True,
+                        width="small"
+                    ),
+                    "Verificado ✅": st.column_config.CheckboxColumn("Verificado ✅", default=False, width="small")
+                },
+                hide_index=True,
+                use_container_width=True
+            )
+
+            st.markdown("---")
+            
+            # 3. Lógica de liberação da correção
+            alunos_validados = df_editado[df_editado["Verificado ✅"] == True]
+            botao_corrigir = st.button("🚀 Iniciar Correção em Lote (Motor de IA)", type="primary")
+            
+            if botao_corrigir:
+                if alunos_validados.empty:
+                    st.error("⚠️ Você precisa marcar pelo menos um aluno como 'Verificado ✅' na tabela para iniciar a correção.")
+                else:
+                    st.success(f"🔥 Sistema pronto para corrigir {len(alunos_validados)} prova(s) validadas!")
+                    st.write("A inteligência artificial processará os seguintes alunos:")
+                    st.dataframe(alunos_validados[["Nº", "Nome Lido (OCR)"]], hide_index=True)
+                    
         else:
             st.error("⚠️ Por favor, confirme a homologação do prompt (caixa de seleção acima) antes de prosseguir com a triagem das imagens.")
 
