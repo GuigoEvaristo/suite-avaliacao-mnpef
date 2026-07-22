@@ -314,26 +314,40 @@ with aba_corrigir:
     with col_teo:
         teorico = st.selectbox(
             "Lente Teórica (O 'Como' o aluno aprende):", 
-            ["David Ausubel (Aprendizagem Significativa)", "Edgar Morin (Pensamento Complexo)", "Paulo Freire (Leitura de Mundo)", "Jean Piaget (Construtivismo)", "Lev Vygotsky (Sociointeracionismo)"]
+            [
+                "David Ausubel (Aprendizagem Significativa)", 
+                "Edgar Morin (Pensamento Complexo)", 
+                "Paulo Freire (Leitura de Mundo)", 
+                "Jean Piaget (Construtivismo)", 
+                "Lev Vygotsky (Sociointeracionismo)",
+                "B.F. Skinner (Behaviorismo)",
+                "Carl Rogers (Humanismo)"
+            ]
         )
     with col_met:
         metodologia = st.selectbox(
             "Metodologia Aplicada (O 'Como' foi ensinado):", 
-            ["Resolução de Problemas (PBL)", "Aula Expositiva Dialogada", "Sala de Aula Invertida", "Instrução por Pares (Peer Instruction)"]
+            [
+                "Resolução de Problemas (PBL)", 
+                "Abordagem STEAM",
+                "Aula Expositiva Dialogada", 
+                "Sala de Aula Invertida", 
+                "Instrução por Pares (Peer Instruction)"
+            ]
         )
         
-    st.markdown("**Opções Avançadas de Correção**")
-    peso_correcao = st.slider(
-        "Balanço da Avaliação (Rigor vs. Conceito):", 
-        0, 100, 50, format="%d%%", 
-        help="0% = Foco total na exatidão matemática. 100% = Foco total na construção do conceito e raciocínio."
-    )
-    
-    col_chk1, col_chk2 = st.columns(2)
-    with col_chk1:
-        chk_caligrafia = st.checkbox("Avaliar Legibilidade e Organização Espacial", value=True)
-    with col_chk2:
-        chk_inter = st.checkbox("Valorizar Conexões Interdisciplinares")
+    with st.expander("⚙️ Opções Avançadas de Correção"):
+        st.markdown("**Critérios de Ponderação e Formato**")
+        peso_correcao = st.slider(
+            "Balanço da Avaliação (Rigor vs. Conceito):", 
+            0, 100, 50, format="%d%%", 
+            help="0% = Foco total na exatidão matemática. 100% = Foco total na construção do conceito e raciocínio."
+        )
+        
+        st.markdown("**Filtros Secundários**")
+        chk_caligrafia = st.checkbox("Avaliar Caligrafia, Capricho e Organização Espacial", value=True)
+        chk_inter = st.checkbox("Valorizar Conexões Interdisciplinares (ex: com Química, Biologia, Matemática)")
+        chk_estrutura = st.checkbox("Exigir estruturação lógica (ex: listar os dados antes de aplicar a equação)")
 
     # Gerador dinâmico do Prompt
     nome_teorico = teorico.split(" (")[0]
@@ -342,18 +356,26 @@ with aba_corrigir:
     prompt_base = f"Atue como um professor avaliador de Física. A sua análise deve basear-se na teoria de {nome_teorico}. Considere que o conteúdo foi ministrado via {nome_metodologia}. Durante a correção, o seu peso de avaliação é de {peso_correcao}% focado na construção conceitual e {100-peso_correcao}% no rigor matemático. "
     
     if chk_caligrafia: 
-        prompt_base += "Avise gentilmente no feedback se a desorganização espacial ou caligrafia atrapalhou a interpretação da resolução. "
+        prompt_base += "Avalie o capricho do aluno. Avise gentilmente no feedback se a desorganização espacial ou caligrafia dificultou a interpretação da resolução. "
     if chk_inter: 
-        prompt_base += "Valorize e destaque positivamente caso o aluno faça conexões interdisciplinares. "
+        prompt_base += "Valorize e destaque positivamente caso o aluno faça conexões interdisciplinares consistentes. "
+    if chk_estrutura:
+        prompt_base += "Verifique se houve estruturação lógica (como declarar as variáveis do problema antes da resolução matemática). "
         
     prompt_base += "Se houver erro, formule um feedback formativo que incite o aluno a refletir sobre a falha, em vez de apenas entregar a resposta correta pronta."
 
-    st.markdown("**Homologação do Comando (Transparência da IA):**")
+    st.markdown("---")
+    st.subheader("Homologação do Comando (Transparência da IA)")
+    st.info("💡 **Atenção:** O texto abaixo é uma pré-visualização do *prompt* (instrução de sistema) que será enviado à Inteligência Artificial. Você pode editar, apagar ou adicionar instruções manuais exclusivas para esta correção.")
+    
     prompt_final = st.text_area(
-        "Você pode editar, apagar ou adicionar instruções extras antes de enviar para a IA:", 
+        "Edite o prompt se necessário:", 
         value=prompt_base, 
-        height=150
+        height=150,
+        label_visibility="collapsed"
     )
+    
+    homologado = st.checkbox("✅ **Confirmo e homologo este prompt pedagógico para a correção.**")
 
     st.markdown("---")
     st.header("2. Captura e Triagem em Lote")
@@ -362,12 +384,15 @@ with aba_corrigir:
     fotos_provas = st.file_uploader(
         "Envie as fotos das provas:", 
         type=["png", "jpg", "jpeg"], 
-        accept_multiple_files=True # Permite selecionar várias fotos de uma vez
+        accept_multiple_files=True
     )
     
     if fotos_provas:
         st.success(f"📸 {len(fotos_provas)} imagens carregadas com sucesso na memória.")
-        st.warning("🚧 A Tabela de Triagem Inteligente (OCR de Nomes e Números) e o motor de Correção em Massa serão injetados na próxima atualização do sistema.")
+        if homologado:
+            st.warning("🚧 A Tabela de Triagem Inteligente (com inserção de e-mails para feedback) e o motor de Correção em Massa serão injetados na próxima atualização.")
+        else:
+            st.error("⚠️ Por favor, confirme a homologação do prompt (caixa de seleção acima) antes de prosseguir com a triagem das imagens.")
 
 # ---------------------------------------------------------
 # ABA 3: HISTÓRICO (AGORA DIVIDIDO)
