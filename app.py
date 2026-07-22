@@ -304,39 +304,70 @@ with aba_fabricar:
                     except Exception as e: st.error(f"❌ Falha crítica no sistema: {e}")
 
 # ---------------------------------------------------------
-# ABA 2: CORRIGIR (MANTIDA INTACTA)
+# ABA 2: CORRIGIR (LABORATÓRIO DE AVALIAÇÃO MULTIMODAL)
 # ---------------------------------------------------------
 with aba_corrigir:
-    st.header("Captura e Correção")
-    foto_prova = st.file_uploader("Envie a foto da prova:", type=["png", "jpg", "jpeg"])
-    if foto_prova:
-        caminho_temp = "upload_temp.jpg"
-        try:
-             with open(caminho_temp, "wb") as f: f.write(foto_prova.getbuffer())
-        except Exception as fs_err:
-             st.error(f"❌ Erro ao guardar ficheiro temporário: {fs_err}"); st.stop()
-        st.image(caminho_temp, caption="Visão Inteira", use_container_width=True)
-        if st.button("Executar Análise Multimodal"):
-            with st.spinner("Processando e guardando no arquivo da escola..."):
-                try:
-                    resultado_ia = analisar_prova_com_ia(caminho_temp)
-                    salvar_correcao(usuario_id, st.session_state["escola_ativa"], resultado_ia["parecer"], resultado_ia["coordenadas"])
-                    st.success("✅ Análise guardada no Histórico!")
-                    st.info(resultado_ia["parecer"])
-                    if resultado_ia["coordenadas"]:
-                        try:
-                             caminho_recorte = realizar_recorte_via_coordenadas_ia(caminho_temp, resultado_ia["coordenadas"])
-                             if caminho_recorte: st.image(caminho_recorte, caption="Bloco extraído")
-                        except Exception as crop_err: st.error(f"❌ Erro ao cortar imagem: {crop_err}")
-                except Exception as e: st.error(f"❌ Erro: {e}")
+    st.header("1. Intencionalidade Pedagógica")
+    st.write("Configure as lentes teóricas e metodológicas que guiarão a Inteligência Artificial na correção.")
+    
+    col_teo, col_met = st.columns(2)
+    with col_teo:
+        teorico = st.selectbox(
+            "Lente Teórica (O 'Como' o aluno aprende):", 
+            ["David Ausubel (Aprendizagem Significativa)", "Edgar Morin (Pensamento Complexo)", "Paulo Freire (Leitura de Mundo)", "Jean Piaget (Construtivismo)", "Lev Vygotsky (Sociointeracionismo)"]
+        )
+    with col_met:
+        metodologia = st.selectbox(
+            "Metodologia Aplicada (O 'Como' foi ensinado):", 
+            ["Resolução de Problemas (PBL)", "Aula Expositiva Dialogada", "Sala de Aula Invertida", "Instrução por Pares (Peer Instruction)"]
+        )
+        
+    st.markdown("**Opções Avançadas de Correção**")
+    peso_correcao = st.slider(
+        "Balanço da Avaliação (Rigor vs. Conceito):", 
+        0, 100, 50, format="%d%%", 
+        help="0% = Foco total na exatidão matemática. 100% = Foco total na construção do conceito e raciocínio."
+    )
+    
+    col_chk1, col_chk2 = st.columns(2)
+    with col_chk1:
+        chk_caligrafia = st.checkbox("Avaliar Legibilidade e Organização Espacial", value=True)
+    with col_chk2:
+        chk_inter = st.checkbox("Valorizar Conexões Interdisciplinares")
 
-                # QA RIGOROSO RESTAURADO
-                except ValueError as ve: 
-                    st.error(f"❌ Erro de ficheiro: {ve}")
-                except ConnectionError as ce: 
-                    st.error(f"❌ Erro de Ligação/Google: {ce}")
-                except Exception as e: 
-                    st.error(f"❌ Erro interno: {e}")
+    # Gerador dinâmico do Prompt
+    nome_teorico = teorico.split(" (")[0]
+    nome_metodologia = metodologia.split(" (")[0]
+    
+    prompt_base = f"Atue como um professor avaliador de Física. A sua análise deve basear-se na teoria de {nome_teorico}. Considere que o conteúdo foi ministrado via {nome_metodologia}. Durante a correção, o seu peso de avaliação é de {peso_correcao}% focado na construção conceitual e {100-peso_correcao}% no rigor matemático. "
+    
+    if chk_caligrafia: 
+        prompt_base += "Avise gentilmente no feedback se a desorganização espacial ou caligrafia atrapalhou a interpretação da resolução. "
+    if chk_inter: 
+        prompt_base += "Valorize e destaque positivamente caso o aluno faça conexões interdisciplinares. "
+        
+    prompt_base += "Se houver erro, formule um feedback formativo que incite o aluno a refletir sobre a falha, em vez de apenas entregar a resposta correta pronta."
+
+    st.markdown("**Homologação do Comando (Transparência da IA):**")
+    prompt_final = st.text_area(
+        "Você pode editar, apagar ou adicionar instruções extras antes de enviar para a IA:", 
+        value=prompt_base, 
+        height=150
+    )
+
+    st.markdown("---")
+    st.header("2. Captura e Triagem em Lote")
+    st.info("Fotografe as avaliações preferencialmente na ordem da chamada da turma.")
+    
+    fotos_provas = st.file_uploader(
+        "Envie as fotos das provas:", 
+        type=["png", "jpg", "jpeg"], 
+        accept_multiple_files=True # Permite selecionar várias fotos de uma vez
+    )
+    
+    if fotos_provas:
+        st.success(f"📸 {len(fotos_provas)} imagens carregadas com sucesso na memória.")
+        st.warning("🚧 A Tabela de Triagem Inteligente (OCR de Nomes e Números) e o motor de Correção em Massa serão injetados na próxima atualização do sistema.")
 
 # ---------------------------------------------------------
 # ABA 3: HISTÓRICO (AGORA DIVIDIDO)
