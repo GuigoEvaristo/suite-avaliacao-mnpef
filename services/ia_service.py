@@ -1,6 +1,7 @@
 # services/ia_service.py
 import re
 import streamlit as st
+import json
 from google import genai
 from PIL import Image
 
@@ -72,3 +73,46 @@ def analisar_prova_com_ia(caminho_imagem):
         raise ConnectionError(ce) # Re-lança erros de ligação/API
     except Exception as e:
         raise Exception(f"Ocorreu um erro interno inesperado durante a análise: {e}")
+
+def extrair_dados_cabecalho(imagem):
+    """
+    Função de OCR (Leitura Ótica) para extrair o Número e o Nome do aluno 
+    do cabeçalho da prova fotograda, retornando num formato de dados seguro (JSON).
+    """
+    # Prompt rigoroso focado apenas em extração de dados (sem avaliação pedagógica)
+    prompt_ocr = """
+    Você é um assistente de leitura ótica (OCR). Sua única tarefa é ler a imagem do cabeçalho 
+    desta avaliação escolar e extrair duas informações escritas à mão ou digitadas:
+    1. O número da chamada do aluno.
+    2. O nome do aluno.
+    
+    Retorne a sua resposta EXCLUSIVAMENTE num formato JSON válido, usando a seguinte estrutura exata:
+    {
+        "numero": 12,
+        "nome": "João da Silva"
+    }
+    
+    Se não for possível identificar o número, retorne null. Se não identificar o nome, retorne "Não identificado".
+    Não escreva mais nada além do JSON.
+    """
+    
+    try:
+        # Puxamos o modelo do Gemini já configurado no seu arquivo
+        # Usamos o modelo 'gemini-1.5-flash' pois ele é o mais rápido e barato para tarefas visuais simples como OCR
+        modelo = genai.GenerativeModel('gemini-1.5-flash') 
+        
+        # Faz a requisição enviando a foto e a instrução
+        resposta = modelo.generate_content([prompt_ocr, imagem])
+        
+        # Limpa a resposta (tira aquelas crases de formatação do markdown ```json ... ```)
+        texto_limpo = resposta.text.strip().replace("```json", "").replace("```", "")
+        
+        # Converte o texto da IA num dicionário real do Python
+        dados_aluno = json.loads(texto_limpo)
+        
+        return dados_aluno
+
+    except Exception as e:
+        print(f"Erro na leitura do cabeçalho: {e}")
+        # Retorno de segurança para o sistema não travar se a foto estiver borrada ou a internet falhar
+        return {"numero": None, "nome": "Erro na leitura (Edite manualmente)"}
