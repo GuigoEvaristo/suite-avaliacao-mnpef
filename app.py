@@ -488,11 +488,10 @@ with aba_corrigir:
 # ---------------------------------------------------------
 with aba_historico:
     st.header("📚 Histórico de Avaliações")
-    st.write("Consulte o arquivo de provas aplicadas, pareceres gerados e o status da turma.")
+    st.write("Consulte o arquivo de provas, revise os pareceres da IA e realize a comunicação oficial.")
     
-    # Novos Filtros de busca (Escola -> Turma -> Prova)
+    # Filtros de busca (Escola -> Turma -> Prova)
     col_escola, col_turma, col_prova = st.columns(3)
-    
     with col_escola:
         filtro_escola = st.selectbox("Escola/Colégio:", ["Colégio Estadual Padrão", "Instituto Federal", "Escola Particular Exemplo"])
     with col_turma:
@@ -502,54 +501,97 @@ with aba_historico:
 
     st.markdown("---")
     st.subheader(f"Diário de Correção: {filtro_turma} | {filtro_prova}")
-    st.caption(f"📍 Instituição: {filtro_escola}")
     
-    # 1. Dados fictícios simulando o Banco de Dados após a correção da Aba 2
+    # 1. Banco de Dados atualizado com o texto do Parecer e status de Homologação
     if "df_historico_mock" not in st.session_state:
         st.session_state["df_historico_mock"] = pd.DataFrame({
-            "Nº": [1, 2, 3, 4, 5],
-            "Nome": ["Ana Clara", "Gabriel Souza", "João Pedro", "Mariana Silva", "Pedro Henrique"],
-            "E-mail": ["ana@escola.com", "", "joao@escola.com", "mari@escola.com", ""],
-            "Situação": ["Presente", "Transferido", "Presente", "Faltou", "Presente"],
-            "Ação": ["Visualizar Parecer", "-", "Visualizar Parecer", "-", "Visualizar Parecer"]
+            "Nº": [1, 2, 3, 4],
+            "Nome": ["Ana Clara", "Gabriel Souza", "João Pedro", "Mariana Silva"],
+            "E-mail": ["ana@escola.com", "", "joao@escola.com", "mari@escola.com"],
+            "Situação": ["Presente", "Transferido", "Presente", "Faltou"],
+            "Homologado ✅": [False, False, False, False],
+            "Parecer_Texto": [
+                "Você compreendeu bem a cinemática, mas cometeu um erro na aplicação da Equação de Torricelli. Revise a conversão de km/h para m/s.",
+                "",
+                "Excelente organização lógica dos dados! No entanto, o conceito de inércia precisa ser mais bem fundamentado.",
+                "Prezado(a) aluno(a), você não compareceu à avaliação. Procure a coordenação pedagógica para agendar a 2ª chamada."
+            ]
         })
         
     df_hist = st.session_state["df_historico_mock"]
     
-    # 2. Aplicação da função de cores (Pandas Styler)
+    # 2. Aplicação da Gestão Visual (Cores)
     tabela_colorida = df_hist.style.apply(colorir_status, axis=1)
     
-    # 3. Renderização da tabela estática
-    st.dataframe(
+    # 3. Tabela de Homologação (Editável parcialmente)
+    st.write("Dê um duplo clique na caixa 'Homologado ✅' para aprovar rapidamente, ou use a Revisão Individual abaixo para editar o texto.")
+    
+    df_editado = st.data_editor(
         tabela_colorida, 
         hide_index=True, 
         use_container_width=True,
+        disabled=["Nº", "Nome", "E-mail", "Situação"], # Bloqueia essas colunas contra edição sem querer
         column_config={
-            "Ação": st.column_config.TextColumn("Feedback da IA")
+            "Parecer_Texto": None, # Esconde o texto longo da tabela para não poluir
+            "Homologado ✅": st.column_config.CheckboxColumn("Homologado ✅", width="small")
         }
     )
     
-    # 4. Ações de Comunicação (Envio de E-mails)
-    st.markdown("### 📤 Comunicação de Resultados")
+    # Atualiza a memória com as marcações feitas na tabela
+    st.session_state["df_historico_mock"] = df_editado
+
+    st.markdown("---")
     
-    col_botao1, col_botao2 = st.columns([1, 1])
+    # 4. Revisão, Edição e Disparo
+    col_revisao, col_lote = st.columns([1.2, 1])
     
-    with col_botao1:
-        if st.button("📧 Enviar Feedbacks para TODOS os Alunos", type="primary", use_container_width=True):
-            st.success("✅ Disparo em lote realizado com sucesso!")
-            st.info("""
-            **Relatório de Envio:**
-            * **Presentes:** Receberam o parecer formativo completo.
-            * **Faltosos:** Receberam um e-mail padrão informando a ausência e orientações para 2ª chamada.
-            * **Transferidos:** Ignorados pelo sistema de disparo.
-            """)
-            
-    with col_botao2:
-        with st.expander("🔍 Consulta Individual de Parecer", expanded=False):
-            aluno_selecionado = st.selectbox(
-                "Selecione o aluno para ler o parecer:", 
-                df_hist[df_hist["Situação"] == "Presente"]["Nome"],
-                label_visibility="collapsed"
-            )
-            if st.button("Abrir Parecer", use_container_width=True):
-                st.write(f"O parecer multimodal formativo de **{aluno_selecionado}** aparecerá aqui.")
+    with col_revisao:
+        st.markdown("### 🔍 Revisão Individual")
+        st.info("Leia, altere o que a IA escreveu e aprove o feedback final.")
+        
+        # Filtra apenas os alunos que precisam de feedback (Presentes e Faltosos)
+        alunos_avaliados = df_editado[df_editado["Situação"].isin(["Presente", "Faltou"])]
+        
+        aluno_selecionado = st.selectbox(
+            "Selecione o aluno:", 
+            alunos_avaliados["Nome"],
+            label_visibility="collapsed"
+        )
+        
+        # Puxa o texto atual e o ID daquele aluno
+        idx_aluno = df_editado[df_editado["Nome"] == aluno_selecionado].index[0]
+        texto_atual = df_editado.at[idx_aluno, "Parecer_Texto"]
+        estado_homologado = df_editado.at[idx_aluno, "Homologado ✅"]
+        
+        texto_editado = st.text_area("Feedback do Aluno (Editável):", value=texto_atual, height=150)
+        
+        botoes_acao1, botoes_acao2 = st.columns(2)
+        
+        with botoes_acao1:
+            if st.button("💾 Salvar e Homologar", use_container_width=True):
+                # Salva o texto editado e marca a caixa como True
+                st.session_state["df_historico_mock"].at[idx_aluno, "Parecer_Texto"] = texto_editado
+                st.session_state["df_historico_mock"].at[idx_aluno, "Homologado ✅"] = True
+                st.rerun() # Atualiza a tela para colorir a caixa na tabela acima
+                
+        with botoes_acao2:
+            if st.button("📧 Enviar Individual", use_container_width=True):
+                st.success(f"📩 Feedback enviado para o e-mail de {aluno_selecionado}!")
+
+    with col_lote:
+        st.markdown("### 📤 Disparo em Lote")
+        
+        # Lógica de segurança: Checa se TODOS os alunos Presentes/Faltosos estão homologados
+        todos_homologados = alunos_avaliados["Homologado ✅"].all()
+        faltam = len(alunos_avaliados) - alunos_avaliados["Homologado ✅"].sum()
+        
+        if todos_homologados:
+            st.success("✅ Todos os pareceres foram lidos e homologados!")
+            if st.button("🚀 ENVIAR FEEDBACKS PARA TODA A TURMA", type="primary", use_container_width=True):
+                st.balloons()
+                st.success("Disparo em lote realizado com sucesso para todos os alunos!")
+        else:
+            st.warning(f"⚠️ Faltam homologar **{faltam} parecer(es)**.")
+            st.info("O botão de envio em massa será ativado quando todas as caixas da tabela estiverem marcadas.")
+            # Botão desativado visualmente
+            st.button("🚀 ENVIAR FEEDBACKS PARA TODA A TURMA", type="primary", use_container_width=True, disabled=True)
