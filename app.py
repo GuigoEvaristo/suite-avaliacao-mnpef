@@ -122,6 +122,22 @@ else:
 
 st.markdown("---")
 
+# Função para colorir as linhas baseadas no status do aluno
+def colorir_status(row):
+    situacao = row.get('Situação', '')
+    
+    # Cores em tons pastéis (suaves)
+    if situacao == 'Transferido':
+        cor = 'background-color: #ffcccc' # Vermelho suave
+    elif situacao == 'Faltou':
+        cor = 'background-color: #fff3cd' # Amarelo suave
+    elif situacao == 'Presente':
+        cor = 'background-color: #d4edda' # Verde suave
+    else:
+        cor = ''
+        
+    return [cor] * len(row)
+
 # =========================================================
 # ABAS DO SISTEMA
 # =========================================================
@@ -468,42 +484,50 @@ with aba_corrigir:
             st.error("⚠️ Por favor, confirme a homologação do prompt (caixa de seleção acima) antes de prosseguir com a triagem das imagens.")
 
 # ---------------------------------------------------------
-# ABA 3: HISTÓRICO (AGORA DIVIDIDO)
+# ABA 3: HISTÓRICO (DIÁRIO DE CLASSE DIGITAL)
 # ---------------------------------------------------------
 with aba_historico:
-    st.header(f"Arquivo Pedagógico: {st.session_state['escola_ativa']}")
+    st.header("📚 Histórico de Avaliações")
+    st.write("Consulte o arquivo de provas aplicadas, pareceres gerados e o status da turma.")
     
-    sub_aba_provas, sub_aba_correcoes = st.tabs(["📄 Provas Fabricadas", "📝 Correções Realizadas"])
+    # Filtros de busca para o professor localizar a prova desejada
+    col_turma, col_prova = st.columns(2)
+    with col_turma:
+        filtro_turma = st.selectbox("Selecione a Turma:", ["1º Ano A", "2º Ano B", "3º Ano C"])
+    with col_prova:
+        filtro_prova = st.selectbox("Selecione a Avaliação:", ["1ª Avaliação - Cinemática", "2ª Avaliação - Dinâmica (Leis de Newton)"])
+
+    st.markdown("---")
+    st.subheader(f"Diário de Correção: {filtro_turma} | {filtro_prova}")
     
-    with sub_aba_provas:
-        st.write("Baixe novamente os PDFs das avaliações que você já criou.")
-        provas_salvas = buscar_provas_por_usuario_e_escola(usuario_id, st.session_state["escola_ativa"])
-        if not provas_salvas:
-            st.info("Nenhuma prova fabricada para esta escola ainda.")
-        else:
-            for p in provas_salvas:
-                # p = (id, disciplina, serie, turma, etapa, data_criacao)
-                col_info, col_btn = st.columns([0.8, 0.2])
-                with col_info:
-                    st.markdown(f"**{p[4]} - {p[1]}** | {p[2]} {p[3]} *(Criada em {p[5]})*")
-                with col_btn:
-                    if st.button("Recuperar PDF", key=f"recuperar_pdf_{p[0]}"):
-                        dados_pdf = buscar_pdf_prova(p[0])
-                        if dados_pdf:
-                            st.download_button(
-                                label="📥 Baixar",
-                                data=dados_pdf[0],
-                                file_name=f"{dados_pdf[3]}_{dados_pdf[1]}_{dados_pdf[2]}.pdf",
-                                mime="application/pdf",
-                                key=f"down_pdf_{p[0]}"
-                            )
-                st.markdown("---")
-                
-    with sub_aba_correcoes:
-        registos = buscar_historico_por_usuario_e_escola(usuario_id, st.session_state["escola_ativa"])
-        if not registos:
-            st.info("Nenhuma correção encontrada para esta escola.")
-        else:
-            for reg in registos:
-                with st.expander(f"Correção em: {reg[0]}"):
-                    st.markdown(reg[1])
+    # 1. Dados fictícios simulando o Banco de Dados após a correção da Aba 2
+    if "df_historico_mock" not in st.session_state:
+        st.session_state["df_historico_mock"] = pd.DataFrame({
+            "Nº": [1, 2, 3, 4, 5],
+            "Nome": ["Ana Clara", "Gabriel Souza", "João Pedro", "Mariana Silva", "Pedro Henrique"],
+            "E-mail": ["ana@escola.com", "", "joao@escola.com", "mari@escola.com", ""],
+            "Situação": ["Presente", "Transferido", "Presente", "Faltou", "Presente"],
+            "Ação": ["Visualizar Parecer", "-", "Visualizar Parecer", "-", "Visualizar Parecer"]
+        })
+        
+    df_hist = st.session_state["df_historico_mock"]
+    
+    # 2. Aplicação da função de cores através do Pandas Styler
+    tabela_colorida = df_hist.style.apply(colorir_status, axis=1)
+    
+    # 3. Renderização da tabela estática (read-only)
+    st.dataframe(
+        tabela_colorida, 
+        hide_index=True, 
+        use_container_width=True,
+        column_config={
+            "Ação": st.column_config.TextColumn("Feedback da IA")
+        }
+    )
+    
+    # Simulação do botão para ver o feedback de um aluno específico
+    st.markdown("### 🔍 Consulta de Parecer Individual")
+    aluno_selecionado = st.selectbox("Selecione o aluno para ler o parecer:", df_hist[df_hist["Situação"] == "Presente"]["Nome"])
+    
+    if st.button("Abrir Parecer Pedagógico"):
+        st.info(f"O parecer multimodal formativo de **{aluno_selecionado}** aparecerá aqui. No futuro, haverá também um botão para enviar este texto diretamente para o e-mail do aluno.")
