@@ -490,15 +490,19 @@ with aba_historico:
     st.header("📚 Histórico de Avaliações")
     st.write("Consulte o arquivo de provas aplicadas, pareceres gerados e o status da turma.")
     
-    # Filtros de busca para o professor localizar a prova desejada
-    col_turma, col_prova = st.columns(2)
+    # Novos Filtros de busca (Escola -> Turma -> Prova)
+    col_escola, col_turma, col_prova = st.columns(3)
+    
+    with col_escola:
+        filtro_escola = st.selectbox("Escola/Colégio:", ["Colégio Estadual Padrão", "Instituto Federal", "Escola Particular Exemplo"])
     with col_turma:
-        filtro_turma = st.selectbox("Selecione a Turma:", ["1º Ano A", "2º Ano B", "3º Ano C"])
+        filtro_turma = st.selectbox("Turma:", ["1º Ano A", "2º Ano B", "3º Ano C"])
     with col_prova:
-        filtro_prova = st.selectbox("Selecione a Avaliação:", ["1ª Avaliação - Cinemática", "2ª Avaliação - Dinâmica (Leis de Newton)"])
+        filtro_prova = st.selectbox("Avaliação:", ["1ª Avaliação - Cinemática", "2ª Avaliação - Dinâmica"])
 
     st.markdown("---")
     st.subheader(f"Diário de Correção: {filtro_turma} | {filtro_prova}")
+    st.caption(f"📍 Instituição: {filtro_escola}")
     
     # 1. Dados fictícios simulando o Banco de Dados após a correção da Aba 2
     if "df_historico_mock" not in st.session_state:
@@ -512,10 +516,10 @@ with aba_historico:
         
     df_hist = st.session_state["df_historico_mock"]
     
-    # 2. Aplicação da função de cores através do Pandas Styler
+    # 2. Aplicação da função de cores (Pandas Styler)
     tabela_colorida = df_hist.style.apply(colorir_status, axis=1)
     
-    # 3. Renderização da tabela estática (read-only)
+    # 3. Renderização da tabela estática
     st.dataframe(
         tabela_colorida, 
         hide_index=True, 
@@ -525,9 +529,27 @@ with aba_historico:
         }
     )
     
-    # Simulação do botão para ver o feedback de um aluno específico
-    st.markdown("### 🔍 Consulta de Parecer Individual")
-    aluno_selecionado = st.selectbox("Selecione o aluno para ler o parecer:", df_hist[df_hist["Situação"] == "Presente"]["Nome"])
+    # 4. Ações de Comunicação (Envio de E-mails)
+    st.markdown("### 📤 Comunicação de Resultados")
     
-    if st.button("Abrir Parecer Pedagógico"):
-        st.info(f"O parecer multimodal formativo de **{aluno_selecionado}** aparecerá aqui. No futuro, haverá também um botão para enviar este texto diretamente para o e-mail do aluno.")
+    col_botao1, col_botao2 = st.columns([1, 1])
+    
+    with col_botao1:
+        if st.button("📧 Enviar Feedbacks para TODOS os Alunos", type="primary", use_container_width=True):
+            st.success("✅ Disparo em lote realizado com sucesso!")
+            st.info("""
+            **Relatório de Envio:**
+            * **Presentes:** Receberam o parecer formativo completo.
+            * **Faltosos:** Receberam um e-mail padrão informando a ausência e orientações para 2ª chamada.
+            * **Transferidos:** Ignorados pelo sistema de disparo.
+            """)
+            
+    with col_botao2:
+        with st.expander("🔍 Consulta Individual de Parecer", expanded=False):
+            aluno_selecionado = st.selectbox(
+                "Selecione o aluno para ler o parecer:", 
+                df_hist[df_hist["Situação"] == "Presente"]["Nome"],
+                label_visibility="collapsed"
+            )
+            if st.button("Abrir Parecer", use_container_width=True):
+                st.write(f"O parecer multimodal formativo de **{aluno_selecionado}** aparecerá aqui.")
