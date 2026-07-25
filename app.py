@@ -501,13 +501,14 @@ with aba_historico:
     st.markdown("---")
     st.subheader(f"Diário de Correção: {filtro_turma} | {filtro_prova}")
     
+    # 1. Banco de Dados com nomes LIMPOS (sem emojis nas chaves)
     if "df_historico_mock" not in st.session_state:
         st.session_state["df_historico_mock"] = pd.DataFrame({
             "Nº": [1, 2, 3, 4],
             "Nome": ["Ana Clara", "Gabriel Souza", "João Pedro", "Mariana Silva"],
             "E-mail": ["ana@escola.com", "", "joao@escola.com", "mari@escola.com"],
             "Situação": ["Presente", "Transferido", "Presente", "Faltou"],
-            "Homologado ✅": [False, False, False, False],
+            "Homologado": [False, False, False, False], # <--- NOME LIMPO
             "Parecer_Texto": [
                 "Você compreendeu bem a cinemática, mas cometeu um erro na aplicação da Equação de Torricelli. Revise a conversão de km/h para m/s.",
                 "",
@@ -516,35 +517,42 @@ with aba_historico:
             ]
         })
         
-    df_hist = st.session_state["df_historico_mock"]
-    tabela_colorida = df_hist.style.apply(colorir_status, axis=1)
+    df_principal = st.session_state["df_historico_mock"]
+    
+    # 2. Criamos uma cópia apenas para a tela, jogando fora a coluna de texto longo
+    df_visual = df_principal.drop(columns=["Parecer_Texto"])
+    
+    # Aplicamos a cor na tabela visual
+    tabela_colorida = df_visual.style.apply(colorir_status, axis=1)
     
     st.write("Dê um duplo clique na caixa 'Homologado ✅' para aprovar rapidamente, ou use a Revisão Individual abaixo para editar o texto.")
     
+    # 3. Tabela Editável
     df_editado = st.data_editor(
         tabela_colorida, 
         hide_index=True, 
         use_container_width=True,
         disabled=["Nº", "Nome", "E-mail", "Situação"], 
         column_config={
-            "Parecer_Texto": None, # Esconde o texto da interface
-            "Homologado ✅": st.column_config.CheckboxColumn("Homologado ✅", width="small")
+            # Aqui dizemos pro Streamlit: "A coluna chama 'Homologado', mas mostre com o Emoji"
+            "Homologado": st.column_config.CheckboxColumn("Homologado ✅", width="small")
         }
     )
     
-    # A CORREÇÃO ESTÁ AQUI: Atualizamos só as marcações na memória, preservando os textos
-    st.session_state["df_historico_mock"]["Homologado ✅"] = df_editado["Homologado ✅"]
-    df_principal = st.session_state["df_historico_mock"]
+    # Atualiza de forma cirúrgica apenas a coluna de marcação no banco principal
+    st.session_state["df_historico_mock"]["Homologado"] = df_editado["Homologado"]
+    df_principal = st.session_state["df_historico_mock"] # Recarrega a variável atualizada
 
     st.markdown("---")
     
+    # 4. Revisão, Edição e Disparo
     col_revisao, col_lote = st.columns([1.2, 1])
     
     with col_revisao:
         st.markdown("### 🔍 Revisão Individual")
         st.info("Leia, altere o que a IA escreveu e aprove o feedback final.")
         
-        # Agora usamos o df_principal que contém todas as colunas
+        # Filtra apenas quem não foi transferido
         alunos_avaliados = df_principal[df_principal["Situação"].isin(["Presente", "Faltou"])]
         
         aluno_selecionado = st.selectbox(
@@ -553,6 +561,7 @@ with aba_historico:
             label_visibility="collapsed"
         )
         
+        # Busca o índice do aluno selecionado
         idx_aluno = df_principal[df_principal["Nome"] == aluno_selecionado].index[0]
         texto_atual = df_principal.at[idx_aluno, "Parecer_Texto"]
         
@@ -562,9 +571,10 @@ with aba_historico:
         
         with botoes_acao1:
             if st.button("💾 Salvar e Homologar", use_container_width=True):
+                # Salva a edição e marca a caixa de homologação (True)
                 st.session_state["df_historico_mock"].at[idx_aluno, "Parecer_Texto"] = texto_editado
-                st.session_state["df_historico_mock"].at[idx_aluno, "Homologado ✅"] = True
-                st.rerun() 
+                st.session_state["df_historico_mock"].at[idx_aluno, "Homologado"] = True
+                st.rerun() # Atualiza a página para refletir o checkzinho verde lá em cima
                 
         with botoes_acao2:
             if st.button("📧 Enviar Individual", use_container_width=True):
@@ -573,8 +583,9 @@ with aba_historico:
     with col_lote:
         st.markdown("### 📤 Disparo em Lote")
         
-        todos_homologados = alunos_avaliados["Homologado ✅"].all()
-        faltam = len(alunos_avaliados) - alunos_avaliados["Homologado ✅"].sum()
+        # Lógica de liberação
+        todos_homologados = alunos_avaliados["Homologado"].all()
+        faltam = len(alunos_avaliados) - alunos_avaliados["Homologado"].sum()
         
         if todos_homologados:
             st.success("✅ Todos os pareceres foram lidos e homologados!")
