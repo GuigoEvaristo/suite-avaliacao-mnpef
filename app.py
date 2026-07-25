@@ -501,14 +501,14 @@ with aba_historico:
     st.markdown("---")
     st.subheader(f"Diário de Correção: {filtro_turma} | {filtro_prova}")
     
-    # 1. Banco de Dados com nomes LIMPOS (sem emojis nas chaves)
-    if "df_historico_mock" not in st.session_state:
-        st.session_state["df_historico_mock"] = pd.DataFrame({
+    # 1. Banco de Dados NOVO (Mudamos a chave para _v2 para limpar o cache corrompido do teste anterior)
+    if "df_historico_mock_v2" not in st.session_state:
+        st.session_state["df_historico_mock_v2"] = pd.DataFrame({
             "Nº": [1, 2, 3, 4],
             "Nome": ["Ana Clara", "Gabriel Souza", "João Pedro", "Mariana Silva"],
             "E-mail": ["ana@escola.com", "", "joao@escola.com", "mari@escola.com"],
             "Situação": ["Presente", "Transferido", "Presente", "Faltou"],
-            "Homologado": [False, False, False, False], # <--- NOME LIMPO
+            "Homologado": [False, False, False, False],
             "Parecer_Texto": [
                 "Você compreendeu bem a cinemática, mas cometeu um erro na aplicação da Equação de Torricelli. Revise a conversão de km/h para m/s.",
                 "",
@@ -517,7 +517,7 @@ with aba_historico:
             ]
         })
         
-    df_principal = st.session_state["df_historico_mock"]
+    df_principal = st.session_state["df_historico_mock_v2"]
     
     # 2. Criamos uma cópia apenas para a tela, jogando fora a coluna de texto longo
     df_visual = df_principal.drop(columns=["Parecer_Texto"])
@@ -534,14 +534,13 @@ with aba_historico:
         use_container_width=True,
         disabled=["Nº", "Nome", "E-mail", "Situação"], 
         column_config={
-            # Aqui dizemos pro Streamlit: "A coluna chama 'Homologado', mas mostre com o Emoji"
             "Homologado": st.column_config.CheckboxColumn("Homologado ✅", width="small")
         }
     )
     
     # Atualiza de forma cirúrgica apenas a coluna de marcação no banco principal
-    st.session_state["df_historico_mock"]["Homologado"] = df_editado["Homologado"]
-    df_principal = st.session_state["df_historico_mock"] # Recarrega a variável atualizada
+    st.session_state["df_historico_mock_v2"]["Homologado"] = df_editado["Homologado"]
+    df_principal = st.session_state["df_historico_mock_v2"]
 
     st.markdown("---")
     
@@ -561,7 +560,6 @@ with aba_historico:
             label_visibility="collapsed"
         )
         
-        # Busca o índice do aluno selecionado
         idx_aluno = df_principal[df_principal["Nome"] == aluno_selecionado].index[0]
         texto_atual = df_principal.at[idx_aluno, "Parecer_Texto"]
         
@@ -571,10 +569,9 @@ with aba_historico:
         
         with botoes_acao1:
             if st.button("💾 Salvar e Homologar", use_container_width=True):
-                # Salva a edição e marca a caixa de homologação (True)
-                st.session_state["df_historico_mock"].at[idx_aluno, "Parecer_Texto"] = texto_editado
-                st.session_state["df_historico_mock"].at[idx_aluno, "Homologado"] = True
-                st.rerun() # Atualiza a página para refletir o checkzinho verde lá em cima
+                st.session_state["df_historico_mock_v2"].at[idx_aluno, "Parecer_Texto"] = texto_editado
+                st.session_state["df_historico_mock_v2"].at[idx_aluno, "Homologado"] = True
+                st.rerun() 
                 
         with botoes_acao2:
             if st.button("📧 Enviar Individual", use_container_width=True):
@@ -583,7 +580,6 @@ with aba_historico:
     with col_lote:
         st.markdown("### 📤 Disparo em Lote")
         
-        # Lógica de liberação
         todos_homologados = alunos_avaliados["Homologado"].all()
         faltam = len(alunos_avaliados) - alunos_avaliados["Homologado"].sum()
         
