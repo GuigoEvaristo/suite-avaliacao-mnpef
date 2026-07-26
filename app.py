@@ -754,7 +754,23 @@ with aba_dashboard:
     # --- EXPORTAÇÃO ---
     st.markdown("### 🖨️ Relatórios e Exportação")
     col_relatorio1, col_relatorio2, _ = st.columns([1, 1, 2])
+    
     with col_relatorio1:
+        # Botão fantasma (O PDF exige uma biblioteca externa que instalaremos no futuro)
         st.button("📥 Baixar Relatório (PDF)", use_container_width=True)
+        
     with col_relatorio2:
-        st.button("📊 Exportar Notas (Excel)", use_container_width=True)
+        # 1. Recuperamos o banco de dados da Aba 3 (apenas os alunos avaliados)
+        df_export = st.session_state["df_historico_mock_v2"]
+        
+        # 2. Convertimento rápido para CSV (Lido nativamente pelo Excel)
+        csv = df_export.to_csv(index=False).encode('utf-8')
+        
+        # 3. O verdadeiro botão de Download
+        st.download_button(
+            label="📊 Exportar Notas (Excel/CSV)",
+            data=csv,
+            file_name=f"Relatorio_{filtro_turma}.csv",
+            mime="text/csv",
+            use_container_width=True
+        )
