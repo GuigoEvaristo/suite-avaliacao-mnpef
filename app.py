@@ -168,8 +168,8 @@ def colorir_status(row):
 # =========================================================
 # ABAS DO SISTEMA
 # =========================================================
-aba_fabricar, aba_corrigir, aba_historico = st.tabs([
-    "📝 Fabricar Prova", "📸 Corrigir Avaliação", "📊 Histórico"
+aba_fabricar, aba_corrigir, aba_historico, aba_dashboard = st.tabs([
+    "📝 Fabricar Prova", "📸 Corrigir Avaliação", "📊 Histórico", "📈 Desempenho"
 ])
 
 # ---------------------------------------------------------
@@ -658,3 +658,72 @@ with aba_historico:
         _, col_botao_lote, _ = st.columns([1, 2, 1])
         with col_botao_lote:
             st.button("🚀 ENVIAR FEEDBACKS PARA TODA A TURMA", type="primary", use_container_width=True, disabled=True)
+
+# ---------------------------------------------------------
+# ABA 4: DESEMPENHO (DASHBOARD ANALÍTICO)
+# ---------------------------------------------------------
+with aba_dashboard:
+    st.header("📈 Painel de Gestão Estratégica")
+    st.write("Analise o rendimento da turma e identifique lacunas de aprendizagem.")
+    
+    # Filtros do Dashboard
+    col_dash_escola, col_dash_turma, col_dash_prova = st.columns(3)
+    with col_dash_escola:
+        st.selectbox("Filtrar Escola:", ["Colégio Estadual Padrão", "Instituto Federal", "Escola Particular Exemplo"], key="dash_escola")
+    with col_dash_turma:
+        st.selectbox("Filtrar Turma:", ["1º Ano A", "2º Ano B", "3º Ano C"], key="dash_turma")
+    with col_dash_prova:
+        st.selectbox("Filtrar Avaliação:", ["Visão Geral da Turma", "1ª Avaliação - Cinemática", "2ª Avaliação - Dinâmica"], key="dash_prova")
+
+    st.markdown("---")
+    
+    # --- MÉTRICAS PRINCIPAIS (KPIs) ---
+    st.subheader("Métricas da Turma")
+    col_kpi1, col_kpi2, col_kpi3, col_kpi4 = st.columns(4)
+    
+    with col_kpi1:
+        st.metric(label="Média da Turma", value="7.2", delta="0.5 pontos (vs. Prova anterior)")
+    with col_kpi2:
+        st.metric(label="Taxa de Presença", value="92%", delta="-2% (Faltas)", delta_color="inverse")
+    with col_kpi3:
+        st.metric(label="Taxa de Acerto (Geral)", value="68%")
+    with col_kpi4:
+        st.metric(label="Conceito Crítico", value="Inércia", help="Conceito com maior índice de erros relatados pela IA.")
+
+    st.markdown("---")
+    
+    # --- GRÁFICOS DE ANÁLISE ---
+    col_grafico1, col_grafico2 = st.columns(2)
+    
+    with col_grafico1:
+        st.markdown("### 📊 Desempenho por Questão")
+        st.info("Percentual de acertos da turma em cada questão da prova.")
+        # Dados simulados para o gráfico de barras
+        dados_questoes = pd.DataFrame({
+            "Questão": ["Q1 (Teoria)", "Q2 (Cálculo)", "Q3 (Aplicação)", "Q4 (Gráfico)"],
+            "Acertos (%)": [85, 45, 60, 90]
+        }).set_index("Questão")
+        
+        st.bar_chart(dados_questoes)
+
+    with col_grafico2:
+        st.markdown("### 🧠 Diagnóstico da Inteligência Artificial")
+        st.info("Mapeamento das principais dificuldades e deficiências metodológicas.")
+        
+        # Simulação de Insights extraídos dos Pareceres da Aba 3
+        st.error("📉 **Alerta Crítico:** 55% dos alunos erraram a conversão de unidades na Questão 2 (km/h para m/s).")
+        st.warning("⚠️ **Atenção Conceitual:** Confusão generalizada entre os conceitos de Massa e Peso na Questão 3.")
+        st.success("💡 **Ponto Forte:** Excelente compreensão da 1ª Lei de Newton (Inércia) na Questão 1.")
+        
+        st.markdown("**Recomendação Pedagógica (Gerada pela IA):**")
+        st.write("> *Sugere-se uma breve aula de revisão focada em Análise Dimensional e resolução de exercícios práticos envolvendo conversão do Sistema Internacional (SI) antes do avanço para o próximo módulo.*")
+
+    st.markdown("---")
+    
+    # --- EXPORTAÇÃO ---
+    st.markdown("### 🖨️ Relatórios")
+    col_relatorio1, col_relatorio2, _ = st.columns([1, 1, 2])
+    with col_relatorio1:
+        st.button("📥 Baixar Relatório (PDF)", use_container_width=True)
+    with col_relatorio2:
+        st.button("📊 Exportar Notas (Excel)", use_container_width=True)
