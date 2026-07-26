@@ -353,111 +353,114 @@ with aba_fabricar:
 # ABA 2: CORRIGIR (LABORATÓRIO DE AVALIAÇÃO MULTIMODAL)
 # ---------------------------------------------------------
 with aba_corrigir:
-    st.header("1. Intencionalidade Pedagógica")
+    st.header("1. Origem e Referencial da Avaliação")
+    st.write("Indique ao sistema qual avaliação será corrigida para que a IA tenha o gabarito correto.")
+    
+    modo_prova = st.radio(
+        "Qual é a origem desta avaliação?",
+        ["Prova criada neste sistema (Aba 1)", "Prova Externa (Arquivo pessoal do professor)"],
+        horizontal=True
+    )
+    
+    if modo_prova == "Prova Externa (Arquivo pessoal do professor)":
+        st.info("💡 **Modo Externo Ativado:** Como esta prova não foi gerada pelo sistema, forneça o referencial para guiar a correção.")
+        
+        nome_prova_externa = st.text_input(
+            "Nome da Avaliação (Para salvar no Histórico):", 
+            placeholder="Ex: 1ª Prova de Dinâmica - Turma 2026"
+        )
+        
+        col_gab_texto, col_gab_arq = st.columns(2)
+        with col_gab_texto:
+            gabarito_texto = st.text_area(
+                "Gabarito, Pontuação ou Observações:", 
+                placeholder="Ex: Questão 1 vale 2 pontos. Resposta esperada: 50 N. Considere correto se o aluno errou apenas a conversão de unidades...",
+                height=130
+            )
+        with col_gab_arq:
+            gabarito_arquivo = st.file_uploader(
+                "Anexe a Prova em Branco ou o Gabarito (PDF/Foto):", 
+                type=["pdf", "png", "jpg", "jpeg"]
+            )
+    else:
+        st.info("O sistema resgatará automaticamente o gabarito da prova selecionada.")
+        prova_selecionada = st.selectbox(
+            "Selecione a Prova do Banco de Dados:", 
+            ["[Em breve] Conexão com o banco de provas da Aba 1..."]
+        )
+
+    st.markdown("---")
+    st.header("2. Intencionalidade Pedagógica")
     st.write("Configure as lentes teóricas e metodológicas que guiarão a Inteligência Artificial na correção.")
     
     col_teo, col_met = st.columns(2)
     with col_teo:
         teorico = st.selectbox(
             "Lente Teórica (O 'Como' o aluno aprende):", 
-            [
-                "David Ausubel (Aprendizagem Significativa)", 
-                "Edgar Morin (Pensamento Complexo)", 
-                "Paulo Freire (Leitura de Mundo)", 
-                "Jean Piaget (Construtivismo)", 
-                "Lev Vygotsky (Sociointeracionismo)",
-                "B.F. Skinner (Behaviorismo)",
-                "Carl Rogers (Humanismo)"
-            ]
+            ["David Ausubel (Aprendizagem Significativa)", "Edgar Morin (Pensamento Complexo)", "Paulo Freire (Leitura de Mundo)", "Jean Piaget (Construtivismo)", "Lev Vygotsky (Sociointeracionismo)", "B.F. Skinner (Behaviorismo)", "Carl Rogers (Humanismo)"]
         )
     with col_met:
         metodologia = st.selectbox(
             "Metodologia Aplicada (O 'Como' foi ensinado):", 
-            [
-                "Resolução de Problemas (PBL)", 
-                "Abordagem STEAM",
-                "Aula Expositiva Dialogada", 
-                "Sala de Aula Invertida", 
-                "Instrução por Pares (Peer Instruction)"
-            ]
+            ["Resolução de Problemas (PBL)", "Abordagem STEAM", "Aula Expositiva Dialogada", "Sala de Aula Invertida", "Instrução por Pares (Peer Instruction)"]
         )
         
     with st.expander("⚙️ Opções Avançadas de Correção"):
-        st.markdown("**Critérios de Ponderação e Formato**")
         peso_correcao = st.slider(
             "Balanço da Avaliação (Rigor vs. Conceito):", 
             0, 100, 50, format="%d%%", 
-            help="0% = Foco total na exatidão matemática. 100% = Foco total na construção do conceito e raciocínio."
+            help="0% = Foco total na exatidão matemática. 100% = Foco total na construção do conceito."
         )
-        
-        st.markdown("**Filtros Secundários**")
         chk_caligrafia = st.checkbox("Avaliar Caligrafia, Capricho e Organização Espacial", value=True)
-        chk_inter = st.checkbox("Valorizar Conexões Interdisciplinares (ex: com Química, Biologia, Matemática)")
-        chk_estrutura = st.checkbox("Exigir estruturação lógica (ex: listar os dados antes de aplicar a equação)")
+        chk_inter = st.checkbox("Valorizar Conexões Interdisciplinares")
+        chk_estrutura = st.checkbox("Exigir estruturação lógica (ex: listar os dados antes da equação)")
 
-    # Gerador dinâmico do Prompt
     nome_teorico = teorico.split(" (")[0]
     nome_metodologia = metodologia.split(" (")[0]
     
     prompt_base = f"Atue como um professor avaliador de Física. A sua análise deve basear-se na teoria de {nome_teorico}. Considere que o conteúdo foi ministrado via {nome_metodologia}. Durante a correção, o seu peso de avaliação é de {peso_correcao}% focado na construção conceitual e {100-peso_correcao}% no rigor matemático. "
     
-    if chk_caligrafia: 
-        prompt_base += "Avalie o capricho do aluno. Avise gentilmente no feedback se a desorganização espacial ou caligrafia dificultou a interpretação da resolução. "
-    if chk_inter: 
-        prompt_base += "Valorize e destaque positivamente caso o aluno faça conexões interdisciplinares consistentes. "
-    if chk_estrutura:
-        prompt_base += "Verifique se houve estruturação lógica (como declarar as variáveis do problema antes da resolução matemática). "
+    if chk_caligrafia: prompt_base += "Avalie o capricho do aluno e a organização espacial. "
+    if chk_inter: prompt_base += "Valorize conexões interdisciplinares. "
+    if chk_estrutura: prompt_base += "Verifique estruturação lógica dos dados. "
         
-    prompt_base += "Se houver erro, formule um feedback formativo que incite o aluno a refletir sobre a falha, em vez de apenas entregar a resposta correta pronta."
+    prompt_base += "Formule um feedback formativo que incite o aluno a refletir sobre a falha, sem entregar a resposta pronta."
 
-    st.markdown("---")
-    st.subheader("Homologação do Comando (Transparência da IA)")
-    st.info("💡 **Atenção:** O texto abaixo é uma pré-visualização do *prompt* (instrução de sistema) que será enviado à Inteligência Artificial. Você pode editar, apagar ou adicionar instruções manuais exclusivas para esta correção.")
-    
+    st.markdown("### Homologação do Comando")
     prompt_final = st.text_area(
-        "Edite o prompt se necessário:", 
+        "Edite o prompt pedagógico se necessário:", 
         value=prompt_base, 
-        height=150,
+        height=120,
         label_visibility="collapsed"
     )
-    
     homologado = st.checkbox("✅ **Confirmo e homologo este prompt pedagógico para a correção.**")
 
     st.markdown("---")
-    st.header("2. Captura e Triagem em Lote")
-    st.info("Fotografe as avaliações preferencialmente na ordem da chamada da turma.")
+    st.header("3. Captura e Triagem em Lote")
+    st.info("Fotografe as avaliações dos alunos preferencialmente na ordem da chamada da turma.")
     
     fotos_provas = st.file_uploader(
-        "Envie as fotos das provas:", 
+        "Envie as fotos das provas resolvidas pelos alunos:", 
         type=["png", "jpg", "jpeg"], 
         accept_multiple_files=True
     )
     
     if fotos_provas:
-        st.success(f"📸 {len(fotos_provas)} imagens carregadas na memória.")
+        st.success(f"📸 {len(fotos_provas)} imagens de alunos carregadas.")
         
         if homologado:
-            # Botão para disparar o OCR
             if st.button("🔍 Extrair Nomes e Números (Visão Computacional)"):
                 with st.spinner("A analisar a caligrafia dos cabeçalhos..."):
                     lista_alunos = []
-                    
-                    # Barra de progresso visual
                     barra = st.progress(0)
                     
                     for i, foto_upload in enumerate(fotos_provas):
-                        # Converter o arquivo do Streamlit para o formato de Imagem que a IA entende
                         imagem_pil = Image.open(foto_upload)
-                        
-                        # Chamar a IA (A função que criamos no Passo Anterior)
                         dados = extrair_dados_cabecalho(imagem_pil)
                         
-                        # Extrair de forma segura, com salvaguarda de erros
-                        # Se a IA não achar o número, usa o índice da ordem do upload
                         num_lido = dados.get("numero") if dados.get("numero") is not None else i + 1 
                         nome_lido = dados.get("nome", "Não identificado")
                         
-                        # Inserir o resultado na nossa lista
                         lista_alunos.append({
                             "Nº": num_lido,
                             "Nome Lido (OCR)": nome_lido,
@@ -465,18 +468,13 @@ with aba_corrigir:
                             "Situação": "Presente",
                             "Verificado ✅": False
                         })
-                        
-                        # Atualizar a barra de progresso
                         barra.progress((i + 1) / len(fotos_provas))
                     
-                    # Gravar os dados extraídos na memória do site (Session State)
                     st.session_state["df_triagem"] = pd.DataFrame(lista_alunos)
                     st.success("Leitura concluída! Por favor, revise a tabela abaixo.")
 
-            # Renderização da Planilha Interativa (Só aparece DEPOIS do OCR terminar)
             if "df_triagem" in st.session_state:
                 st.markdown("### 📋 Tabela de Triagem e Homologação")
-                st.info("👉 **Revise os dados:** Dê um duplo clique para corrigir nomes que a IA não conseguiu ler. Marque a caixa de Verificado para liberar a prova.")
                 
                 df_editado = st.data_editor(
                     st.session_state["df_triagem"],
@@ -485,10 +483,7 @@ with aba_corrigir:
                         "Nome Lido (OCR)": st.column_config.TextColumn("Nome do Aluno", width="medium"),
                         "E-mail (Feedback)": st.column_config.TextColumn("E-mail", width="medium"),
                         "Situação": st.column_config.SelectboxColumn(
-                            "Situação",
-                            options=["Presente", "Transferido", "Faltou"],
-                            required=True,
-                            width="small"
+                            "Situação", options=["Presente", "Transferido", "Faltou"], required=True, width="small"
                         ),
                         "Verificado ✅": st.column_config.CheckboxColumn("Verificado ✅", default=False, width="small")
                     },
@@ -497,19 +492,17 @@ with aba_corrigir:
                 )
 
                 st.markdown("---")
-                
-                # Lógica de liberação da correção profunda
                 alunos_validados = df_editado[df_editado["Verificado ✅"] == True]
                 
                 if st.button("🚀 Iniciar Correção Pedagógica (Motor de IA)", type="primary"):
                     if alunos_validados.empty:
                         st.error("⚠️ Você precisa marcar pelo menos um aluno como 'Verificado ✅' na tabela.")
                     else:
-                        st.success(f"🔥 Iniciando a correção profunda parametrizada para {len(alunos_validados)} aluno(s) validado(s)...")
-                        # (O motor final de correção será inserido aqui no próximo passo)
+                        st.success(f"🔥 Iniciando a correção para {len(alunos_validados)} aluno(s) validado(s)...")
+                        # O motor chamará a IA enviando o prompt_final + fotos_provas + gabarito (se houver)
         else:
-            st.error("⚠️ Por favor, confirme a homologação do prompt (caixa de seleção acima) antes de prosseguir com a triagem das imagens.")
-
+            st.error("⚠️ Confirme a homologação do prompt pedagógico (caixa de seleção acima) para liberar a triagem.")
+            
 # ---------------------------------------------------------
 # ABA 3: HISTÓRICO (DIÁRIO DE CLASSE DIGITAL)
 # ---------------------------------------------------------
