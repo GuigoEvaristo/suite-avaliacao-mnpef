@@ -74,3 +74,4 @@ websockets==16.0
 SQLAlchemy==2.0.51
 psycopg2-binary==2.9.12
 greenlet==3.5.4
+fpdf==1.7.2

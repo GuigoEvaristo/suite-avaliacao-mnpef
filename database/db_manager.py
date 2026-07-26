@@ -206,3 +206,28 @@ def buscar_historico_por_usuario_e_escola(usuario_id, escola):
         # Converte diretamente para Pandas
         df = pd.DataFrame(result.fetchall(), columns=result.keys())
         return df
+
+# ---------------------------------------------------------
+# OPERAÇÕES DE MANUTENÇÃO (CRUD)
+# ---------------------------------------------------------
+def renomear_escola(usuario_id, nome_antigo, nome_novo):
+    try:
+        with engine.begin() as conn:
+            conn.execute(text("""
+                UPDATE escolas 
+                SET nome = :novo 
+                WHERE usuario_id = :u_id AND nome = :antigo
+            """), {"novo": nome_novo, "u_id": usuario_id, "antigo": nome_antigo})
+        return True
+    except:
+        return False
+
+def deletar_conta_usuario(usuario_id):
+    try:
+        with engine.begin() as conn:
+            # O "ON DELETE CASCADE" que configuramos nas tabelas fará com que 
+            # provas, escolas e diários deste professor sejam apagados automaticamente.
+            conn.execute(text("DELETE FROM usuarios WHERE id = :u_id"), {"u_id": usuario_id})
+        return True
+    except:
+        return False

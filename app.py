@@ -3,6 +3,7 @@ import streamlit as st
 import pandas as pd
 import os
 import datetime
+from fpdf import FPDF
 from PIL import Image
 from services.ia_service import extrair_dados_cabecalho
 from fabri_ava import fabricar_prova
@@ -80,12 +81,18 @@ def remover_questao(index):
 if not st.session_state["autenticado"]:
     st.title("Bem-vindo à Suíte de Avaliação para Professores")
     st.subheader("🔒 Acesso Restrito ao Projeto")
-    senha_digitada = st.text_input("Senha Global:", type="password")
-    if st.button("Entrar no Sistema"):
-        if senha_digitada == st.secrets["SENHA_ACESSO"]:
-            st.session_state["autenticado"] = True
-            st.rerun()
-        else: st.error("Senha global incorreta.")
+    
+    # A mágica do Enter acontece ao envolvermos os campos num 'form'
+    with st.form("form_senha_global"):
+        senha_digitada = st.text_input("Senha Global:", type="password")
+        submit_senha = st.form_submit_button("Entrar no Sistema")
+        
+        if submit_senha:
+            if senha_digitada == st.secrets["SENHA_ACESSO"]:
+                st.session_state["autenticado"] = True
+                st.rerun()
+            else: 
+                st.error("Senha global incorreta.")
     st.stop()
 
 if st.session_state["autenticado"] and st.session_state["usuario_logado"] is None:
@@ -164,6 +171,32 @@ def colorir_status(row):
         cor = ''
         
     return [cor] * len(row)
+
+# --- BARRA LATERAL (CONFIGURAÇÕES DO PROFESSOR) ---
+if "usuario_id" in st.session_state:
+    with st.sidebar:
+        st.header("⚙️ Configurações")
+        st.write(f"Olá, **{st.session_state['usuario_nome']}**")
+        
+        with st.expander("Editar Nome de Escola"):
+            escolas_cadastradas = db.buscar_escolas_por_usuario(st.session_state["usuario_id"])
+            if escolas_cadastradas:
+                escola_para_editar = st.selectbox("Selecione a escola:", escolas_cadastradas)
+                novo_nome = st.text_input("Novo nome:")
+                if st.button("Salvar Alteração"):
+                    if novo_nome and novo_nome != escola_para_editar:
+                        db.renomear_escola(st.session_state["usuario_id"], escola_para_editar, novo_nome)
+                        st.success("Nome atualizado!")
+                        st.rerun()
+            else:
+                st.info("Nenhuma escola cadastrada.")
+                
+        with st.expander("🚨 Zona de Risco"):
+            st.warning("Atenção: Apagar a conta exclui todas as provas e turmas.")
+            if st.button("Deletar minha conta"):
+                db.deletar_conta_usuario(st.session_state["usuario_id"])
+                st.session_state.clear() # Limpa a sessão
+                st.rerun()
 
 # =========================================================
 # ABAS DO SISTEMA
@@ -756,8 +789,38 @@ with aba_dashboard:
     col_relatorio1, col_relatorio2, _ = st.columns([1, 1, 2])
     
     with col_relatorio1:
-        # Botão fantasma (O PDF exige uma biblioteca externa que instalaremos no futuro)
-        st.button("📥 Baixar Relatório (PDF)", width="stretch")
+        # Função para gerar o PDF em memória
+        def gerar_pdf_relatorio(turma, df_notas):
+            pdf = FPDF()
+            pdf.add_page()
+            pdf.set_font("Arial", "B", 16)
+            pdf.cell(0, 10, f"Relatorio de Desempenho - Turma: {turma}", ln=True, align="C")
+            pdf.ln(10)
+            
+            pdf.set_font("Arial", "B", 12)
+            pdf.cell(60, 10, "Aluno", border=1)
+            pdf.cell(30, 10, "Nota", border=1, ln=True)
+            
+            pdf.set_font("Arial", "", 12)
+            # Lê os dados (Mock data do histórico)
+            for _, row in df_notas.iterrows():
+                pdf.cell(60, 10, str(row["aluno"])[:20], border=1) # Trunca nome longo
+                pdf.cell(30, 10, str(row["nota"]), border=1, ln=True)
+                
+            # Retorna o arquivo em formato de bytes
+            return pdf.output(dest="S").encode("latin1")
+
+        # Recupera os dados
+        df_pdf = st.session_state["df_historico_mock_v2"]
+        pdf_bytes = gerar_pdf_relatorio(filtro_turma, df_pdf)
+        
+        st.download_button(
+            label="📥 Baixar Relatório (PDF)",
+            data=pdf_bytes,
+            file_name=f"Relatorio_{filtro_turma}.pdf",
+            mime="application/pdf",
+            width="stretch"
+        )
         
     with col_relatorio2:
         # 1. Recuperamos o banco de dados da Aba 3 (apenas os alunos avaliados)
