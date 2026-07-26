@@ -71,3 +71,6 @@ urllib3==2.7.0
 uvicorn==0.48.0
 watchdog==6.0.0
 websockets==16.0
+SQLAlchemy==2.0.51
+psycopg2-binary==2.9.12
+greenlet==3.5.4
