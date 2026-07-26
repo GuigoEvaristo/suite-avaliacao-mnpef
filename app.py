@@ -193,6 +193,48 @@ with aba_fabricar:
     st.markdown("---")
     st.header("2. Construção das Questões")
 
+    # --- 🤖 ESTÚDIO DE CRIAÇÃO COM IA ---
+    with st.expander("✨ Estúdio de Criação (Gerar Questões com IA)", expanded=False):
+        st.info("Descreva o tema e deixe a Inteligência Artificial formular as questões para você. Após a geração, você poderá editar os textos livremente abaixo.")
+        
+        col_ia1, col_ia2, col_ia3 = st.columns([2, 1, 1])
+        with col_ia1:
+            tema_ia = st.text_input("Tema/Conteúdo:", placeholder="Ex: Leis de Newton aplicadas ao cotidiano")
+        with col_ia2:
+            qtd_ia = st.number_input("Quantidade:", min_value=1, max_value=10, value=3)
+        with col_ia3:
+            tipo_ia = st.selectbox("Formato predominante:", ["Múltipla Escolha", "Dissertativa", "Misto"])
+            
+        if st.button("🪄 Gerar Questões com IA", type="primary", use_container_width=True):
+            if not tema_ia:
+                st.warning("Por favor, digite um tema para a IA trabalhar.")
+            else:
+                with st.spinner(f"A Inteligência Artificial está a redigir {qtd_ia} questão(ões) sobre '{tema_ia}'..."):
+                    # Aqui, futuramente, chamaremos a função real do ia_service.py
+                    # Por enquanto, simulamos o comportamento injetando questões no vetor
+                    import time
+                    time.sleep(2) # Simula o tempo de resposta da IA
+                    
+                    for i in range(qtd_ia):
+                        if tipo_ia == "Múltipla Escolha" or (tipo_ia == "Misto" and i % 2 == 0):
+                            st.session_state["lista_questoes"].append({
+                                "enunciado": f"(Gerada por IA) Questão sobre {tema_ia}. Analise a situação e assinale a correta:", 
+                                "tipo": "multipla", 
+                                "estilo_espaco": "box", "tamanho_espaco": "medio",
+                                "alternativas": "A) Alternativa gerada 1\nB) Alternativa gerada 2\nC) Alternativa gerada 3\nD) Alternativa gerada 4", 
+                                "estilo_vf": "classico", "afirmacoes": "", "imagem_temp": None
+                            })
+                        else:
+                            st.session_state["lista_questoes"].append({
+                                "enunciado": f"(Gerada por IA) Descreva com as suas palavras o conceito central de {tema_ia}.", 
+                                "tipo": "aberta", 
+                                "estilo_espaco": "lines", "tamanho_espaco": "medio",
+                                "alternativas": "", 
+                                "estilo_vf": "classico", "afirmacoes": "", "imagem_temp": None
+                            })
+                    st.success("✨ Questões geradas com sucesso! Você pode revisá-las e editá-las abaixo.")
+                    st.rerun()
+
     # --- GUIA RÁPIDO DE FORMATAÇÃO E FÓRMULAS ---
     with st.expander("💡 Guia Rápido de Formatação e Fórmulas Matemáticas"):
         st.markdown(r"""
@@ -502,7 +544,7 @@ with aba_corrigir:
                         # O motor chamará a IA enviando o prompt_final + fotos_provas + gabarito (se houver)
         else:
             st.error("⚠️ Confirme a homologação do prompt pedagógico (caixa de seleção acima) para liberar a triagem.")
-            
+
 # ---------------------------------------------------------
 # ABA 3: HISTÓRICO (DIÁRIO DE CLASSE DIGITAL)
 # ---------------------------------------------------------
