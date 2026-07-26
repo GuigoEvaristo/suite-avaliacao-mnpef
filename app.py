@@ -15,7 +15,34 @@ from database.db_manager import (
     salvar_prova_fabricada, buscar_provas_por_usuario_e_escola, buscar_pdf_prova
 )
 
-st.set_page_config(page_title="Suíte de Avaliação para Professores - MNPEF", layout="centered", page_icon="📝")
+# 1. CONFIGURAÇÃO DA PÁGINA (Substituiu a sua linha antiga, agora com layout="wide")
+st.set_page_config(
+    page_title="Suíte de Avaliação para Professores - MNPEF", 
+    layout="wide", 
+    page_icon="📝",
+    initial_sidebar_state="expanded"
+)
+
+# 2. INJEÇÃO DE CSS (Acessibilidade Visual para os Professores)
+st.markdown("""
+    <style>
+        /* Aumenta a fonte base de todo o aplicativo */
+        html, body, [class*="css"] {
+            font-size: 18px !important;
+        }
+        /* Aumenta os textos dos menus, caixas de edição e botões */
+        .stTextInput label, .stSelectbox label, .stTextArea label, .stCheckbox label {
+            font-size: 18px !important;
+            font-weight: 500;
+        }
+        .stButton>button {
+            font-size: 18px !important;
+            padding: 10px 20px;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+# 3. INICIALIZAÇÃO DO BANCO (Mantida no lugar correto)
 iniciar_banco()
 
 # =========================================================
@@ -501,7 +528,6 @@ with aba_historico:
     st.markdown("---")
     st.subheader(f"Diário de Correção: {filtro_turma} | {filtro_prova}")
     
-    # 1. Banco de Dados NOVO (Mudamos a chave para _v2 para limpar o cache corrompido do teste anterior)
     if "df_historico_mock_v2" not in st.session_state:
         st.session_state["df_historico_mock_v2"] = pd.DataFrame({
             "Nº": [1, 2, 3, 4],
@@ -518,16 +544,11 @@ with aba_historico:
         })
         
     df_principal = st.session_state["df_historico_mock_v2"]
-    
-    # 2. Criamos uma cópia apenas para a tela, jogando fora a coluna de texto longo
     df_visual = df_principal.drop(columns=["Parecer_Texto"])
-    
-    # Aplicamos a cor na tabela visual
     tabela_colorida = df_visual.style.apply(colorir_status, axis=1)
     
     st.write("Dê um duplo clique na caixa 'Homologado ✅' para aprovar rapidamente, ou use a Revisão Individual abaixo para editar o texto.")
     
-    # 3. Tabela Editável
     df_editado = st.data_editor(
         tabela_colorida, 
         hide_index=True, 
@@ -538,57 +559,67 @@ with aba_historico:
         }
     )
     
-    # Atualiza de forma cirúrgica apenas a coluna de marcação no banco principal
     st.session_state["df_historico_mock_v2"]["Homologado"] = df_editado["Homologado"]
     df_principal = st.session_state["df_historico_mock_v2"]
 
+    # Aviso Estratégico (O gancho visual que você sugeriu)
+    st.info("💡 **Dica de Fluxo:** Após homologar todos os alunos na tabela acima ou na revisão abaixo, o botão de **Disparo em Lote** será ativado no final da página.")
+
     st.markdown("---")
     
-    # 4. Revisão, Edição e Disparo
-    col_revisao, col_lote = st.columns([1.2, 1])
+    # --- BLOCO 1: REVISÃO INDIVIDUAL ---
+    st.markdown("### 🔍 Revisão Individual")
+    st.write("Leia, altere o que a IA escreveu e aprove o feedback final aluno por aluno.")
     
-    with col_revisao:
-        st.markdown("### 🔍 Revisão Individual")
-        st.info("Leia, altere o que a IA escreveu e aprove o feedback final.")
-        
-        # Filtra apenas quem não foi transferido
-        alunos_avaliados = df_principal[df_principal["Situação"].isin(["Presente", "Faltou"])]
-        
+    alunos_avaliados = df_principal[df_principal["Situação"].isin(["Presente", "Faltou"])]
+    
+    col_sel_aluno, col_vazia = st.columns([1, 1])
+    with col_sel_aluno:
         aluno_selecionado = st.selectbox(
             "Selecione o aluno:", 
             alunos_avaliados["Nome"],
             label_visibility="collapsed"
         )
-        
-        idx_aluno = df_principal[df_principal["Nome"] == aluno_selecionado].index[0]
-        texto_atual = df_principal.at[idx_aluno, "Parecer_Texto"]
-        
-        texto_editado = st.text_area("Feedback do Aluno (Editável):", value=texto_atual, height=150)
-        
-        botoes_acao1, botoes_acao2 = st.columns(2)
-        
-        with botoes_acao1:
-            if st.button("💾 Salvar e Homologar", use_container_width=True):
-                st.session_state["df_historico_mock_v2"].at[idx_aluno, "Parecer_Texto"] = texto_editado
-                st.session_state["df_historico_mock_v2"].at[idx_aluno, "Homologado"] = True
-                st.rerun() 
-                
-        with botoes_acao2:
-            if st.button("📧 Enviar Individual", use_container_width=True):
-                st.success(f"📩 Feedback enviado para o e-mail de {aluno_selecionado}!")
+    
+    idx_aluno = df_principal[df_principal["Nome"] == aluno_selecionado].index[0]
+    texto_atual = df_principal.at[idx_aluno, "Parecer_Texto"]
+    
+    texto_editado = st.text_area("Feedback do Aluno (Editável):", value=texto_atual, height=180)
+    
+    botoes_acao1, botoes_acao2, _ = st.columns([1, 1, 2])
+    
+    with botoes_acao1:
+        if st.button("💾 Salvar e Homologar", use_container_width=True):
+            st.session_state["df_historico_mock_v2"].at[idx_aluno, "Parecer_Texto"] = texto_editado
+            st.session_state["df_historico_mock_v2"].at[idx_aluno, "Homologado"] = True
+            st.rerun() 
+            
+    with botoes_acao2:
+        if st.button("📧 Enviar Individual", use_container_width=True):
+            st.success(f"📩 Feedback enviado para {aluno_selecionado}!")
 
-    with col_lote:
-        st.markdown("### 📤 Disparo em Lote")
+    st.markdown("---")
+    
+    # --- BLOCO 2: DISPARO EM LOTE (Fundo da página) ---
+    st.markdown("### 📤 Comunicação em Massa (Disparo em Lote)")
+    
+    todos_homologados = alunos_avaliados["Homologado"].all()
+    faltam = len(alunos_avaliados) - alunos_avaliados["Homologado"].sum()
+    
+    if todos_homologados:
+        st.success("✅ Excelente! Todos os pareceres foram lidos e homologados.")
+        st.write("Clique abaixo para enviar os e-mails para toda a turma de uma só vez.")
         
-        todos_homologados = alunos_avaliados["Homologado"].all()
-        faltam = len(alunos_avaliados) - alunos_avaliados["Homologado"].sum()
-        
-        if todos_homologados:
-            st.success("✅ Todos os pareceres foram lidos e homologados!")
+        # Botão centralizado e largo para destacar no final da página
+        _, col_botao_lote, _ = st.columns([1, 2, 1])
+        with col_botao_lote:
             if st.button("🚀 ENVIAR FEEDBACKS PARA TODA A TURMA", type="primary", use_container_width=True):
                 st.balloons()
                 st.success("Disparo em lote realizado com sucesso para todos os alunos!")
-        else:
-            st.warning(f"⚠️ Faltam homologar **{faltam} parecer(es)**.")
-            st.info("O botão de envio em massa será ativado quando todas as caixas da tabela estiverem marcadas.")
+    else:
+        st.warning(f"⚠️ Faltam homologar **{faltam} parecer(es)**.")
+        st.info("Aguardando revisão de todos os alunos para liberar o envio em massa.")
+        
+        _, col_botao_lote, _ = st.columns([1, 2, 1])
+        with col_botao_lote:
             st.button("🚀 ENVIAR FEEDBACKS PARA TODA A TURMA", type="primary", use_container_width=True, disabled=True)
