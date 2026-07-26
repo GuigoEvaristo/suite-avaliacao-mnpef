@@ -666,7 +666,6 @@ with aba_dashboard:
     st.header("📈 Painel de Gestão Estratégica")
     st.write("Analise o rendimento da turma e identifique lacunas de aprendizagem.")
     
-    # Filtros do Dashboard
     col_dash_escola, col_dash_turma, col_dash_prova = st.columns(3)
     with col_dash_escola:
         st.selectbox("Filtrar Escola:", ["Colégio Estadual Padrão", "Instituto Federal", "Escola Particular Exemplo"], key="dash_escola")
@@ -698,30 +697,62 @@ with aba_dashboard:
     with col_grafico1:
         st.markdown("### 📊 Desempenho por Questão")
         st.info("Percentual de acertos da turma em cada questão da prova.")
-        # Dados simulados para o gráfico de barras
         dados_questoes = pd.DataFrame({
             "Questão": ["Q1 (Teoria)", "Q2 (Cálculo)", "Q3 (Aplicação)", "Q4 (Gráfico)"],
             "Acertos (%)": [85, 45, 60, 90]
         }).set_index("Questão")
-        
         st.bar_chart(dados_questoes)
 
     with col_grafico2:
         st.markdown("### 🧠 Diagnóstico da Inteligência Artificial")
         st.info("Mapeamento das principais dificuldades e deficiências metodológicas.")
         
-        # Simulação de Insights extraídos dos Pareceres da Aba 3
         st.error("📉 **Alerta Crítico:** 55% dos alunos erraram a conversão de unidades na Questão 2 (km/h para m/s).")
         st.warning("⚠️ **Atenção Conceitual:** Confusão generalizada entre os conceitos de Massa e Peso na Questão 3.")
-        st.success("💡 **Ponto Forte:** Excelente compreensão da 1ª Lei de Newton (Inércia) na Questão 1.")
         
-        st.markdown("**Recomendação Pedagógica (Gerada pela IA):**")
-        st.write("> *Sugere-se uma breve aula de revisão focada em Análise Dimensional e resolução de exercícios práticos envolvendo conversão do Sistema Internacional (SI) antes do avanço para o próximo módulo.*")
+        st.markdown("**Recomendação Padrão:**")
+        st.write("> *Sugere-se uma breve revisão focada em Análise Dimensional.*")
+        
+        # --- NOVA FUNCIONALIDADE: ESTRATÉGIA INTEGRADA ---
+        with st.expander("✨ Estratégia Pedagógica Integrada (Sem atrasar o calendário)"):
+            st.write("Forneça o próximo conteúdo do seu plano de ensino para a IA criar uma estratégia que remedeie as lacunas sem interromper o fluxo das aulas.")
+            prox_conteudo = st.text_input("Próximo conteúdo a ser ministrado:", placeholder="Ex: Força de Atrito")
+            
+            if st.button("Gerar Integração Pedagógica", use_container_width=True):
+                if prox_conteudo:
+                    st.success("✅ **Estratégia Gerada:**")
+                    st.write(f"> *Ao iniciar a aula sobre **{prox_conteudo}**, inicie com um problema-desafio que exija o cálculo da Força Normal (onde o Peso importa) e peça para calcularem a velocidade final em m/s. Isso forçará a revisão da conversão de unidades (lacuna atual) como um degrau necessário para compreender o novo conceito de Atrito, criando uma ancoragem natural sem dedicar uma aula exclusiva a revisões.*")
+                else:
+                    st.warning("Por favor, digite o próximo conteúdo.")
+
+    st.markdown("---")
+    
+    # --- NOVA FUNCIONALIDADE: DESEMPENHO INDIVIDUAL ---
+    st.markdown("### 👤 Raio-X Individual (Micro-Dashboard)")
+    st.write("Analise o perfil de aprendizagem de um aluno específico para conselhos de classe ou tutoria.")
+    
+    # Aqui, no mundo real, puxaríamos a lista de alunos do banco de dados (Aba 3)
+    aluno_selecionado = st.selectbox(
+        "Selecione o Aluno:", 
+        ["Ana Clara", "Gabriel Souza", "João Pedro", "Mariana Silva"],
+        label_visibility="collapsed"
+    )
+    
+    # Cartão de informações do aluno simuladas
+    col_ind1, col_ind2, col_ind3 = st.columns([1, 2, 1])
+    with col_ind1:
+        st.metric(label="Nota Final", value="8.5", delta="Acima da Média")
+    with col_ind2:
+        st.markdown("**🔍 Perfil Cognitivo Detectado:**")
+        st.write("Excelente raciocínio lógico-matemático (100% de acerto nos cálculos), mas apresenta ligeira dificuldade na interpretação de enunciados longos.")
+    with col_ind3:
+        st.markdown("**🎯 Foco de Melhoria:**")
+        st.write("Leitura e abstração de problemas.")
 
     st.markdown("---")
     
     # --- EXPORTAÇÃO ---
-    st.markdown("### 🖨️ Relatórios")
+    st.markdown("### 🖨️ Relatórios e Exportação")
     col_relatorio1, col_relatorio2, _ = st.columns([1, 1, 2])
     with col_relatorio1:
         st.button("📥 Baixar Relatório (PDF)", use_container_width=True)
