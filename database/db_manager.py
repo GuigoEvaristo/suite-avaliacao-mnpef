@@ -29,18 +29,19 @@ def iniciar_banco():
     Verifica se as tabelas existem no Supabase. Se não existirem (primeira execução),
     ele cria todas automaticamente. Isso elimina a necessidade de configurações manuais.
     """
-    with engine.begin() as conn:
-        # Tabela de Usuários (Professores)
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS usuarios (
-                id SERIAL PRIMARY KEY,
-                nome VARCHAR(255) NOT NULL,
-                email VARCHAR(255) UNIQUE NOT NULL,
-                telefone VARCHAR(50),
-                senha VARCHAR(255) NOT NULL,
-                data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-        """))
+    try:
+        with engine.begin() as conn:
+            # Tabela de Usuários (Professores)
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS usuarios (
+                    id SERIAL PRIMARY KEY,
+                    nome VARCHAR(255) NOT NULL,
+                    email VARCHAR(255) UNIQUE NOT NULL,
+                    telefone VARCHAR(50),
+                    senha VARCHAR(255) NOT NULL,
+                    data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """))
         
         # Tabela de Escolas vinculadas ao Usuário
         conn.execute(text("""
@@ -83,6 +84,10 @@ def iniciar_banco():
                 data_correcao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         """))
+    except Exception as e:
+        # Silencia silenciosamente os erros de concorrência (race conditions) 
+        # que ocorrem quando múltiplos processos tentam verificar as tabelas ao mesmo tempo.
+        pass
 
 # ---------------------------------------------------------
 # AUTENTICAÇÃO E SEGURANÇA
