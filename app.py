@@ -205,7 +205,7 @@ with aba_fabricar:
         with col_ia3:
             tipo_ia = st.selectbox("Formato predominante:", ["Múltipla Escolha", "Dissertativa", "Misto"])
             
-        if st.button("🪄 Gerar Questões com IA", type="primary", use_container_width=True):
+        if st.button("🪄 Gerar Questões com IA", type="primary", width="stretch"):
             if not tema_ia:
                 st.warning("Por favor, digite um tema para a IA trabalhar.")
             else:
@@ -530,7 +530,7 @@ with aba_corrigir:
                         "Verificado ✅": st.column_config.CheckboxColumn("Verificado ✅", default=False, width="small")
                     },
                     hide_index=True,
-                    use_container_width=True
+                    width="stretch"
                 )
 
                 st.markdown("---")
@@ -587,7 +587,7 @@ with aba_historico:
     df_editado = st.data_editor(
         tabela_colorida, 
         hide_index=True, 
-        use_container_width=True,
+        width="stretch",
         disabled=["Nº", "Nome", "E-mail", "Situação"], 
         column_config={
             "Homologado": st.column_config.CheckboxColumn("Homologado ✅", width="small")
@@ -624,13 +624,13 @@ with aba_historico:
     botoes_acao1, botoes_acao2, _ = st.columns([1, 1, 2])
     
     with botoes_acao1:
-        if st.button("💾 Salvar e Homologar", use_container_width=True):
+        if st.button("💾 Salvar e Homologar", width="stretch"):
             st.session_state["df_historico_mock_v2"].at[idx_aluno, "Parecer_Texto"] = texto_editado
             st.session_state["df_historico_mock_v2"].at[idx_aluno, "Homologado"] = True
             st.rerun() 
             
     with botoes_acao2:
-        if st.button("📧 Enviar Individual", use_container_width=True):
+        if st.button("📧 Enviar Individual", width="stretch"):
             st.success(f"📩 Feedback enviado para {aluno_selecionado}!")
 
     st.markdown("---")
@@ -648,7 +648,7 @@ with aba_historico:
         # Botão centralizado e largo para destacar no final da página
         _, col_botao_lote, _ = st.columns([1, 2, 1])
         with col_botao_lote:
-            if st.button("🚀 ENVIAR FEEDBACKS PARA TODA A TURMA", type="primary", use_container_width=True):
+            if st.button("🚀 ENVIAR FEEDBACKS PARA TODA A TURMA", type="primary", width="stretch"):
                 st.balloons()
                 st.success("Disparo em lote realizado com sucesso para todos os alunos!")
     else:
@@ -657,7 +657,7 @@ with aba_historico:
         
         _, col_botao_lote, _ = st.columns([1, 2, 1])
         with col_botao_lote:
-            st.button("🚀 ENVIAR FEEDBACKS PARA TODA A TURMA", type="primary", use_container_width=True, disabled=True)
+            st.button("🚀 ENVIAR FEEDBACKS PARA TODA A TURMA", type="primary", width="stretch", disabled=True)
 
 # ---------------------------------------------------------
 # ABA 4: DESEMPENHO (DASHBOARD ANALÍTICO)
@@ -718,7 +718,7 @@ with aba_dashboard:
             st.write("Forneça o próximo conteúdo do seu plano de ensino para a IA criar uma estratégia que remedeie as lacunas sem interromper o fluxo das aulas.")
             prox_conteudo = st.text_input("Próximo conteúdo a ser ministrado:", placeholder="Ex: Força de Atrito")
             
-            if st.button("Gerar Integração Pedagógica", use_container_width=True):
+            if st.button("Gerar Integração Pedagógica", width="stretch"):
                 if prox_conteudo:
                     st.success("✅ **Estratégia Gerada:**")
                     st.write(f"> *Ao iniciar a aula sobre **{prox_conteudo}**, inicie com um problema-desafio que exija o cálculo da Força Normal (onde o Peso importa) e peça para calcularem a velocidade final em m/s. Isso forçará a revisão da conversão de unidades (lacuna atual) como um degrau necessário para compreender o novo conceito de Atrito, criando uma ancoragem natural sem dedicar uma aula exclusiva a revisões.*")
@@ -757,7 +757,7 @@ with aba_dashboard:
     
     with col_relatorio1:
         # Botão fantasma (O PDF exige uma biblioteca externa que instalaremos no futuro)
-        st.button("📥 Baixar Relatório (PDF)", use_container_width=True)
+        st.button("📥 Baixar Relatório (PDF)", width="stretch")
         
     with col_relatorio2:
         # 1. Recuperamos o banco de dados da Aba 3 (apenas os alunos avaliados)
@@ -772,5 +772,5 @@ with aba_dashboard:
             data=csv,
             file_name=f"Relatorio_{filtro_turma}.csv",
             mime="text/csv",
-            use_container_width=True
+            width="stretch"
         )
